@@ -37,7 +37,7 @@ import sys
 import collections
 
 # local
-from blessed import Terminal
+from hamingjur import Terminal
 
 
 def get_pos(term):

@@ -1,6 +1,6 @@
 mouse.py
 --------
 
-.. automodule:: blessed.mouse
+.. automodule:: hamingjur.mouse
    :members:
    :undoc-members:

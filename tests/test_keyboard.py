@@ -13,7 +13,7 @@ import pytest
 import jinxed
 
 # local
-from blessed.terminal import _KEYBOARD_READ_SIZE
+from hamingjur.terminal import _KEYBOARD_READ_SIZE
 from .conftest import IS_WINDOWS
 from .accessories import TestTerminal, as_subprocess
 
@@ -208,7 +208,7 @@ def test_stdin_notty_kb_is_None():
 
 def test_keystroke_default_args():
     """Test keyboard.Keystroke constructor with default arguments."""
-    from blessed.keyboard import Keystroke
+    from hamingjur.keyboard import Keystroke
     ks = Keystroke()
     assert ks._name is None
     assert ks.name == ks._name
@@ -221,7 +221,7 @@ def test_keystroke_default_args():
 
 def test_a_keystroke():
     """Test keyboard.Keystroke constructor with set arguments."""
-    from blessed.keyboard import Keystroke
+    from hamingjur.keyboard import Keystroke
     ks = Keystroke(ucs='x', code=1, name='the X')
     assert ks._name == 'the X'
     assert ks.name == ks._name
@@ -234,10 +234,10 @@ def test_a_keystroke():
 
 def test_get_keyboard_codes():
     """Test all values returned by get_keyboard_codes are from curses(jinxed)."""
-    import blessed.keyboard
-    exemptions = dict(blessed.keyboard.CURSES_KEYCODE_OVERRIDE_MIXIN)
+    import hamingjur.keyboard
+    exemptions = dict(hamingjur.keyboard.CURSES_KEYCODE_OVERRIDE_MIXIN)
     # Add PUA overrides to exemptions since they intentionally override curses keys
-    exemptions.update(blessed.keyboard.KITTY_PUA_KEYCODE_OVERRIDE_MIXIN)
+    exemptions.update(hamingjur.keyboard.KITTY_PUA_KEYCODE_OVERRIDE_MIXIN)
     # List of homemade keycodes that are not in curses
     homemade_keycodes = ('TAB', 'KP_MULTIPLY', 'KP_ADD', 'KP_SEPARATOR',
                          'KP_SUBTRACT', 'KP_DECIMAL', 'KP_DIVIDE', 'KP_EQUAL',
@@ -269,14 +269,14 @@ def test_get_keyboard_codes():
                          'LEFT_HYPER', 'LEFT_META', 'RIGHT_SHIFT', 'RIGHT_CONTROL',
                          'RIGHT_ALT', 'RIGHT_SUPER', 'RIGHT_HYPER', 'RIGHT_META',
                          'CPR_RESPONSE')
-    for value, keycode in blessed.keyboard.get_keyboard_codes().items():
+    for value, keycode in hamingjur.keyboard.get_keyboard_codes().items():
         if keycode in exemptions:
             assert value == exemptions[keycode]
             continue
         if keycode[4:] in homemade_keycodes:
             assert not hasattr(jinxed, keycode)
-            assert hasattr(blessed.keyboard, keycode)
-            assert getattr(blessed.keyboard, keycode) == value
+            assert hasattr(hamingjur.keyboard, keycode)
+            assert getattr(hamingjur.keyboard, keycode) == value
         else:
             assert hasattr(jinxed, keycode)
             assert getattr(jinxed, keycode) == value
@@ -298,7 +298,7 @@ def test_get_keyboard_sequences_sort_order():
 
 def test_get_keyboard_sequence(monkeypatch):
     """Test keyboard.get_keyboard_sequence."""
-    import blessed.keyboard
+    import hamingjur.keyboard
 
     (KEY_SMALL, KEY_LARGE, KEY_MIXIN) = range(3)
     (CAP_SMALL, CAP_LARGE) = 'cap-small cap-large'.split()
@@ -313,12 +313,12 @@ def test_get_keyboard_sequence(monkeypatch):
 
     monkeypatch.setattr(jinxed, 'tigetstr', tigetstr_func)
 
-    monkeypatch.setattr(blessed.keyboard, 'capability_names',
+    monkeypatch.setattr(hamingjur.keyboard, 'capability_names',
                         dict(((KEY_SMALL, CAP_SMALL,),
                               (KEY_LARGE, CAP_LARGE,))))
 
     # patch global sequence mix-in
-    monkeypatch.setattr(blessed.keyboard,
+    monkeypatch.setattr(hamingjur.keyboard,
                         'DEFAULT_SEQUENCE_MIXIN', (
                             (SEQ_MIXIN.decode('latin1'), KEY_MIXIN),))
 
@@ -327,7 +327,7 @@ def test_get_keyboard_sequence(monkeypatch):
     jinxed_mock = mock.Mock()
     jinxed_mock.tigetstr = tigetstr_func
     term._jinxed_term = jinxed_mock
-    keymap = blessed.keyboard.get_keyboard_sequences(term)
+    keymap = hamingjur.keyboard.get_keyboard_sequences(term)
 
     assert list(keymap.items()) == [
         (SEQ_LARGE.decode('latin1'), KEY_LARGE),
@@ -337,7 +337,7 @@ def test_get_keyboard_sequence(monkeypatch):
 
 def test_resolve_sequence_order():
     """Test resolve_sequence for order-dependent mapping."""
-    from blessed.keyboard import resolve_sequence
+    from hamingjur.keyboard import resolve_sequence
     mapper = collections.OrderedDict(
         (('SEQ1', 1),
          ('SEQ2', 2),
@@ -425,7 +425,7 @@ def test_resolve_sequence_order():
 ])
 def test_cpr_response(seq, capture_cpr, expected_name, expected_yx):
     """CPR response matched as single CPR_RESPONSE keystroke."""
-    from blessed.keyboard import resolve_sequence
+    from hamingjur.keyboard import resolve_sequence
     expected_kb_proto = expected_name not in ('CPR_RESPONSE', 'CSI')
     mapper = collections.OrderedDict()
     ks = resolve_sequence(seq, mapper, {}, capture_cpr=capture_cpr)
@@ -454,7 +454,7 @@ def test_cpr_response(seq, capture_cpr, expected_name, expected_yx):
 ])
 def test_keystroke_xtgettcap(seq, expected_caps):
     """Keystroke.xtgettcap decodes an XTGETTCAP reply, and is empty for anything else."""
-    from blessed.keyboard import resolve_sequence
+    from hamingjur.keyboard import resolve_sequence
     ks = resolve_sequence(seq, collections.OrderedDict(), {})
     assert str(ks) == seq
     assert ks.is_sequence
@@ -467,7 +467,7 @@ def test_keystroke_xtgettcap(seq, expected_caps):
 ])
 def test_cpr_response_not_matched(sequence, expected_name):
     """Row 0 or 1 not matched as CPR."""
-    from blessed.keyboard import resolve_sequence
+    from hamingjur.keyboard import resolve_sequence
     mapper = collections.OrderedDict()
     ks = resolve_sequence(sequence, mapper, {})
     assert ks.name == expected_name
@@ -475,7 +475,7 @@ def test_cpr_response_not_matched(sequence, expected_name):
 
 def test_cpr_response_with_trailing_text():
     """CPR matcher consumes only the CPR sequence."""
-    from blessed.keyboard import resolve_sequence
+    from hamingjur.keyboard import resolve_sequence
     mapper = collections.OrderedDict()
     ks = resolve_sequence('\x1b[5;10Rextra', mapper, {})
     assert ks == '\x1b[5;10R'
@@ -484,7 +484,7 @@ def test_cpr_response_with_trailing_text():
 
 def test_keyboard_prefixes():
     """Test keyboard.prefixes."""
-    from blessed.keyboard import get_leading_prefixes
+    from hamingjur.keyboard import get_leading_prefixes
     keys = ['abc', 'abdf', 'e', 'jkl']
     pfs = get_leading_prefixes(keys)
     assert pfs == {'a', 'ab', 'abd', 'j', 'jk'}
@@ -649,7 +649,7 @@ def test_kp_begin_center_key():
     (None, 0.35), ('', 0.35), ('XYZ123!', 0.35), ('1234', 1.234)])
 def test_ESCDELAY(monkeypatch, value, expected):
     """env $ESCDELAY, in milliseconds, defines DEFAULT_ESCDELAY."""
-    from blessed.keyboard import DEFAULT_ESCDELAY, _seconds_from_env
+    from hamingjur.keyboard import DEFAULT_ESCDELAY, _seconds_from_env
     if value is None:
         assert DEFAULT_ESCDELAY == expected
     else:
@@ -661,7 +661,7 @@ def test_ESCDELAY(monkeypatch, value, expected):
     (None, 5.0), ('', 5.0), ('XYZ123!', 5.0), ('0', 0.0), ('300', 300.0)])
 def test_BLESSED_QUERY_TIMEOUT_SECONDS(monkeypatch, value, expected):
     """env $BLESSED_QUERY_TIMEOUT_SECONDS defines TERMINAL_QUERY_TIMEOUT_SECONDS."""
-    from blessed.keyboard import TERMINAL_QUERY_TIMEOUT_SECONDS, _seconds_from_env
+    from hamingjur.keyboard import TERMINAL_QUERY_TIMEOUT_SECONDS, _seconds_from_env
     if value is None:
         assert TERMINAL_QUERY_TIMEOUT_SECONDS == expected
     else:
@@ -672,7 +672,7 @@ def test_BLESSED_QUERY_TIMEOUT_SECONDS(monkeypatch, value, expected):
 def test_unsupported_high_byte_metasendsescape():
     """Test ESC + high-byte character (> 126) defaults to no modifiers."""
     # this library does not support the (very legacy) alt sends 8th bit high
-    from blessed.keyboard import Keystroke
+    from hamingjur.keyboard import Keystroke
 
     ks = Keystroke('\x1b\x80')  # ESC + char with code 128
     assert ks.modifiers == 1    # No modifiers detected
@@ -774,7 +774,7 @@ def test_read_available_read_failures():
 @pytest.mark.skipif(IS_WINDOWS, reason="no tty module")
 def test_read_until_with_legacy_mouse():
     """_read_until() matches a query reply received alongside a legacy mouse report."""
-    from blessed.keyboard import _read_until
+    from hamingjur.keyboard import _read_until
 
     def child():
         term = TestTerminal(stream=io.StringIO(), force_styling=True)

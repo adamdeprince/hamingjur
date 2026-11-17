@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Demonstrate OSC 52 clipboard copy and paste."""
 
-from blessed import Terminal
+from hamingjur import Terminal
 
 term = Terminal()
 
@@ -18,7 +18,7 @@ print(term.bright_green(' supported!'))
 print()
 
 # Copy text to clipboard
-message = 'Hello from blessed!'
+message = 'Hello from hamingjur!'
 term.clipboard_copy(message)
 print(f'Copied to clipboard: {term.bold(repr(message))}')
 print()

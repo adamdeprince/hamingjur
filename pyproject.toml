@@ -1,28 +1,28 @@
 [build-system]
-requires = ['flit_core >=3.11,<4']
-build-backend = 'flit_core.buildapi'
+requires = ['setuptools>=77']
+build-backend = 'setuptools.build_meta'
 
-[tool.flit.sdist]
-include = [
-    'docs/',
-    'tests/',
-    'bin/',
-    '*.rst',
-    'tox.ini',
-]
-exclude = [
-    'docs/_build/',
-]
+[tool.setuptools.packages.find]
+include = ['hamingjur*']
+
+[tool.setuptools.package-data]
+hamingjur = ['py.typed', '*.txt']
+
+[tool.setuptools.dynamic]
+version = {attr = 'hamingjur.__version__'}
 
 [project]
-name = 'blessed'
+name = 'hamingjur'
 description = """\
-    Easy, practical library for making terminal apps, by providing an elegant, \
-    well-documented interface for Terminals.\
+    A pure Python fork of Blessed with Kitty and Silkie terminal protocols.\
 """
 authors = [
-    {name = 'Jeff Quast, Erik Rose, Avram Lubkin', email = 'contact@jeffquast.com'},
+    {name = 'Adam DePrince'},
+    {name = 'Jeff Quast'},
+    {name = 'Erik Rose'},
+    {name = 'Avram Lubkin'},
 ]
+maintainers = [{name = 'Adam DePrince'}]
 
 classifiers = [
     'Intended Audience :: Developers',
@@ -58,6 +58,7 @@ readme = 'docs/intro.rst'
 requires-python = '>=3.9'
 
 [project.optional-dependencies]
+images = ['Pillow>=9.1']
 docs = [
     'Pillow',
     'Sphinx>3',
@@ -67,11 +68,10 @@ docs = [
 ]
 
 [project.urls]
-Homepage = 'https://github.com/jquast/blessed'
-Documentation = 'https://blessed.readthedocs.io'
-Repository = 'https://github.com/jquast/blessed'
-Issues = 'https://github.com/jquast/blessed/issues'
-Changelog = 'https://blessed.readthedocs.io/en/latest/history.html'
+Homepage = 'https://hamingjur.goblinreactor.com'
+Documentation = 'https://hamingjur.goblinreactor.com/#api'
+Repository = 'https://github.com/adamdeprince/hamingjur'
+Issues = 'https://github.com/adamdeprince/hamingjur/issues'
 
 [tool.pylint.main]
 load-plugins = [

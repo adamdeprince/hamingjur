@@ -2,14 +2,13 @@
 import os
 import sys
 import runpy
-import datetime
 import sphinx.environment
 from docutils.utils import get_source_line
 
 # for github.py
 HERE = os.path.dirname(__file__)
 sys.path.insert(0, os.path.abspath('sphinxext'))
-github_project_url = "https://github.com/jquast/blessed"
+github_project_url = "https://github.com/adamdeprince/hamingjur"
 
 
 # ! Monkey Patching!
@@ -31,7 +30,7 @@ def _warn_node(self, msg, node):
 sphinx.environment.BuildEnvironment.warn_node = _warn_node
 
 
-from blessed.terminal import *  # isort:skip # noqa
+from hamingjur.terminal import *  # isort:skip # noqa
 
 # and finally, don't you just wish readthedocs.org could run tox? :) it can't,
 # so we do a bit of script injection, here.
@@ -71,16 +70,17 @@ source_suffix = {'.rst': 'restructuredtext'}
 master_doc = 'index'
 
 # General information about the project.
-project = 'Blessed'
+project = 'Hamingjur'
 
-copyright = f'2011-{datetime.datetime.now().year} Erik Rose, Jeff Quast, Avram Lubkin'
+copyright = ('2026 Adam DePrince (Hamingjur); '
+             '2011 Erik Rose; 2014 Jeff Quast; Blessed contributors including Avram Lubkin')
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
 # The short X.Y version.
-from blessed import __version__ as version  # isort:skip # noqa
+from hamingjur import __version__ as version  # isort:skip # noqa
 
 # The full version, including alpha/beta/rc tags.
 release = version
@@ -198,7 +198,7 @@ html_show_copyright = True
 # html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'blesseddoc'
+htmlhelp_basename = 'hamingjurdoc'
 
 
 # -- Options for LaTeX output -------------------------------------------------
@@ -213,8 +213,8 @@ htmlhelp_basename = 'blesseddoc'
 # (source start file, target name, title, author, documentclass
 # [howto/manual]).
 latex_documents = [
-    ('index', 'blessed.tex', 'Blessed Documentation',
-     'Erik Rose, Jeff Quast, Avram Lubkin', 'manual'),
+    ('index', 'hamingjur.tex', 'Hamingjur Documentation',
+     'Adam DePrince; Erik Rose, Jeff Quast, Avram Lubkin', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -246,8 +246,8 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'Blessed', 'Blessed Documentation',
-     ['Erik Rose, Jeff Quast, Avram Lubkin'], 1)
+    ('index', 'Hamingjur', 'Hamingjur Documentation',
+     ['Adam DePrince', 'Erik Rose', 'Jeff Quast', 'Avram Lubkin'], 1)
 ]
 
 # sort order of API documentation is by their appearance in source code

@@ -1,6 +1,6 @@
 line_editor.py
 --------------
 
-.. automodule:: blessed.line_editor
+.. automodule:: hamingjur.line_editor
    :members:
    :undoc-members:

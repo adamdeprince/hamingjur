@@ -1,8 +1,8 @@
 Colors
 ======
 
-Doing colors with blessed is easy, pick a color name from the :ref:`Color chart` below, any of these
-named are also attributes of the :doc:`terminal`!
+Pick a color name from the :ref:`Color chart` below. Each name is also an
+attribute of the :doc:`terminal`!
 
 These attributes can be printed directly, causing the terminal to switch into the given color.  Or,
 as a callable, which terminates the string with the ``normal`` attribute.  The following three

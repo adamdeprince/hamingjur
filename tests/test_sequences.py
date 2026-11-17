@@ -9,7 +9,7 @@ import pytest
 
 # local
 from .conftest import IS_WINDOWS
-from blessed.sequences import Termcap
+from hamingjur.sequences import Termcap
 from .accessories import (TestTerminal, unicode_cap, unicode_parm, pty_test)
 
 
@@ -493,7 +493,7 @@ def test_padd():
     def child(kind):
         # local
 
-        from blessed.sequences import Sequence
+        from hamingjur.sequences import Sequence
         term = TestTerminal(kind=kind, force_styling=True)
         assert Sequence('xyz\b', term).padd() == 'xy'
         assert Sequence('xyz\b-', term).padd() == 'xy-'
@@ -831,7 +831,7 @@ def test_clip_sequence_method(any_term):
     """Sequence.clip() matches Terminal.clip()."""
     def child(kind):
         # local
-        from blessed.sequences import Sequence
+        from hamingjur.sequences import Sequence
 
         term = TestTerminal(kind=kind)
         assert Sequence('hello world', term).clip(6) == term.clip('hello world', 6)
@@ -844,7 +844,7 @@ def test_sequence_length(any_term):
     """Sequence.length() measures the printable width of sequences."""
     def child(kind):
         # local
-        from blessed.sequences import Sequence
+        from hamingjur.sequences import Sequence
 
         term = TestTerminal(kind=kind, force_styling=True)
         given = term.clear + term.red('コンニチハ')
@@ -858,7 +858,7 @@ def test_supports_index(any_term):
 
     def child(kind):
         # local
-        from blessed.sequences import Sequence
+        from hamingjur.sequences import Sequence
 
         class Indexable:
             """Custom class implementing __index__()"""
@@ -883,7 +883,7 @@ def test_supports_index(any_term):
 
 def test_get_proxy_string_deprecated():
     """get_proxy_string() returns None (deprecated, no warning emitted)."""
-    from blessed.formatters import get_proxy_string
+    from hamingjur.formatters import get_proxy_string
     assert get_proxy_string(None, 'any_cap') is None
 
 
@@ -898,7 +898,7 @@ def test_get_proxy_string_deprecated():
 def test_clip_cursor_overwrites_display_cells(any_term, api, text, width, expected):
     """Clipping resolves cursor movement in display cells without deleting the untouched tail."""
     # local
-    from blessed.sequences import Sequence
+    from hamingjur.sequences import Sequence
 
     term = TestTerminal(kind=any_term, force_styling=True)
     seq = Sequence(text, term)

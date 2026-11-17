@@ -445,7 +445,7 @@ def test_Sequence_alignment(any_term):
 def test_Sequence_alignment_ambiguous_width(monkeypatch):
     """Alignment padding honors the detected ambiguous width."""
     # local
-    from blessed.sequences import Sequence
+    from hamingjur.sequences import Sequence
 
     monkeypatch.setenv('AMBIGUOUS_WIDE', '2')
     term = TestTerminal(stream=StringIO(), force_styling=True)
@@ -461,8 +461,8 @@ def test_hyperlink_nostyling():
         # given,
         term = TestTerminal(force_styling=None)
         given_basic_url = term.link(
-            'https://blessed.readthedocs.org', 'blessed')
-        assert given_basic_url == 'blessed'
+            'https://blessed.readthedocs.org', 'hamingjur')
+        assert given_basic_url == 'hamingjur'
 
     child()
 
@@ -473,18 +473,18 @@ def test_basic_hyperlinks():
         # given,
         term = TestTerminal()
         given_basic_url = term.link(
-            'https://blessed.readthedocs.org', 'blessed')
+            'https://blessed.readthedocs.org', 'hamingjur')
         # exercise,
         split_parts = term.split_seqs(given_basic_url)
         # verify
         if term.does_styling:
             assert split_parts[0] == '\x1b]8;;https://blessed.readthedocs.org\x1b\\'
             assert term.length(split_parts[0]) == 0
-            assert ''.join(split_parts[1:8]) == 'blessed'
+            assert ''.join(split_parts[1:8]) == 'hamingjur'
             assert split_parts[8] == '\x1b]8;;\x1b\\'
             assert len(split_parts) == 9
         else:
-            assert ''.join(split_parts) == 'blessed'
+            assert ''.join(split_parts) == 'hamingjur'
 
     child()
 
@@ -495,18 +495,18 @@ def test_hyperlink_with_id():
         # given,
         term = TestTerminal()
         given_advanced_urltext = term.link(
-            'https://blessed.readthedocs.org', 'blessed', '123')
+            'https://blessed.readthedocs.org', 'hamingjur', '123')
         # exercise,
         split_parts = term.split_seqs(given_advanced_urltext)
         # verify,
         if term.does_styling:
             assert split_parts[0] == '\x1b]8;id=123;https://blessed.readthedocs.org\x1b\\'
             assert term.length(split_parts[0]) == 0
-            assert ''.join(split_parts[1:8]) == 'blessed'
+            assert ''.join(split_parts[1:8]) == 'hamingjur'
             assert split_parts[8] == '\x1b]8;;\x1b\\'
             assert len(split_parts) == 9
         else:
-            assert ''.join(split_parts) == 'blessed'
+            assert ''.join(split_parts) == 'hamingjur'
 
     child()
 
@@ -599,7 +599,7 @@ def test_sequence_is_movement_false(any_term):
     """Test parser about sequences that do not move the cursor."""
     def child(kind):
         # local
-        from blessed.sequences import measure_length
+        from hamingjur.sequences import measure_length
         term = TestTerminal(kind=kind)
         assert measure_length('', term) == 0
         # not even a mbs
@@ -636,7 +636,7 @@ def test_termcap_will_move_false(any_term):  # pylint: disable=too-complex
     """Test parser about sequences that do not move the cursor."""
     def child(kind):  # pylint: disable=too-many-branches
         # local
-        from blessed.sequences import iter_parse
+        from hamingjur.sequences import iter_parse
         term = TestTerminal(kind=kind)
         if term.clear_eol:
             assert not next(iter_parse(term, term.clear_eol))[1].will_move
@@ -678,7 +678,7 @@ def test_sequence_is_movement_true(any_term):
     """Test parsers about sequences that move the cursor."""
     def child(kind):
         # local
-        from blessed.sequences import measure_length
+        from hamingjur.sequences import measure_length
         term = TestTerminal(kind=kind)
         # movements
         assert len(term.move(98, 76)) == measure_length(term.move(98, 76), term)
@@ -711,7 +711,7 @@ def test_termcap_will_move_true(any_term):
     """Test parser about sequences that move the cursor."""
     def child(kind):
         # local
-        from blessed.sequences import iter_parse
+        from hamingjur.sequences import iter_parse
         term = TestTerminal(kind=kind, force_styling=True)
         assert next(iter_parse(term, term.move(98, 76)))[1].will_move
         assert next(iter_parse(term, term.move_yx(8, 76)))[1].will_move
@@ -735,7 +735,7 @@ def test_foreign_sequences():
     """Test parsers about sequences received from foreign sources."""
     def child(kind):
         # local
-        from blessed.sequences import measure_length
+        from hamingjur.sequences import measure_length
         term = TestTerminal(kind=kind)
         assert measure_length('\x1b[m', term) == len('\x1b[m')
     child(kind='ansi')

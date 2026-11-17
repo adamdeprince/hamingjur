@@ -10,8 +10,8 @@ import signal
 import sys
 import time
 
-from blessed import Terminal
-from blessed.colorspace import X11_COLORNAMES_TO_RGB, hex_to_rgb
+from hamingjur import Terminal
+from hamingjur.colorspace import X11_COLORNAMES_TO_RGB, hex_to_rgb
 
 FULL_BLOCK, LEFT_HALF, RIGHT_HALF = '\u2588', '\u258C', '\u2590'
 INTERESTING_RULES = [18, 22, 26, 30, 45, 60, 75, 82, 86, 89, 90, 101, 102, 105, 109, 110,

@@ -4,12 +4,12 @@
 import sys
 
 # local
-import blessed
+import hamingjur
 
 
 def main():
     """Program entry point."""
-    term = blessed.Terminal()
+    term = hamingjur.Terminal()
     for line in sys.stdin:
         print(term.strip_seqs(line))
 

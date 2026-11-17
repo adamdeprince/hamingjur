@@ -9,7 +9,7 @@ import platform
 import pytest
 
 # local
-from blessed.formatters import _tparm_cached
+from hamingjur.formatters import _tparm_cached
 
 
 def pytest_configure(config: pytest.Config) -> None:

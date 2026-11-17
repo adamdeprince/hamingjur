@@ -3,7 +3,7 @@
 Line Editor
 ===========
 
-The :mod:`blessed.line_editor` module provides :class:`~blessed.line_editor.LineEditor`,
+The :mod:`hamingjur.line_editor` module provides :class:`~hamingjur.line_editor.LineEditor`,
 a headless single-line editor with readline-style keybindings, grapheme-aware cursor
 movement, auto-suggest from history, password masking, and horizontal scrolling.
 
@@ -14,15 +14,15 @@ movement, auto-suggest from history, password masking, and horizontal scrolling.
 
    Use the built-in :ref:`render methods <line_editor_render>` to produce
    ready-to-print escape sequences, or read
-   :attr:`~blessed.line_editor.LineEditor.display` for raw display state
+   :attr:`~hamingjur.line_editor.LineEditor.display` for raw display state
    if you need fully custom rendering.
 
 Overview
 --------
 
 Feed keystrokes (from :meth:`~.Terminal.inkey` or :meth:`~.Terminal.async_inkey`) into
-:meth:`~blessed.line_editor.LineEditor.feed_key`.  It returns a
-:class:`~blessed.line_editor.LineEditResult` with these fields:
+:meth:`~hamingjur.line_editor.LineEditor.feed_key`.  It returns a
+:class:`~hamingjur.line_editor.LineEditResult` with these fields:
 
 - ``line`` the accepted string when Enter is pressed, otherwise ``None``.
 - ``interrupt``, ``eof``: ``True`` on Ctrl+C / Ctrl+D respectively.
@@ -30,8 +30,8 @@ Feed keystrokes (from :meth:`~.Terminal.inkey` or :meth:`~.Terminal.async_inkey`
 - ``bell`` a bell string to emit (empty when silent).
 
 For bracketed paste, feed the pasted text through
-:meth:`~blessed.line_editor.LineEditor.insert_text` instead of
-:meth:`~blessed.line_editor.LineEditor.feed_key`.
+:meth:`~hamingjur.line_editor.LineEditor.insert_text` instead of
+:meth:`~hamingjur.line_editor.LineEditor.feed_key`.
 
 For async usage, simply replace ``term.inkey()`` with ``await term.async_inkey()``.
 See :ref:`async_input` in the keyboard documentation for more on ``async_inkey``.
@@ -50,7 +50,7 @@ A line editor with history, auto-suggest, password mode, and styled rendering:
 History
 -------
 
-:class:`~blessed.line_editor.LineHistory` stores command history in memory.
+:class:`~hamingjur.line_editor.LineHistory` stores command history in memory.
 History navigation (Up/Down) and auto-suggest (type a prefix, press Right to accept)
 are enabled automatically when a history instance is attached to the editor.
 
@@ -62,8 +62,8 @@ entry last).
 Display State & Styling
 -----------------------
 
-Each call to :attr:`~blessed.line_editor.LineEditor.display` returns a
-:class:`~blessed.line_editor.DisplayState` with the visible text, cursor position,
+Each call to :attr:`~hamingjur.line_editor.LineEditor.display` returns a
+:class:`~hamingjur.line_editor.DisplayState` with the visible text, cursor position,
 suggestion suffix, and clipping indicators.
 
 The editor ships with default SGR styling (light cream text, dark suggestion).
@@ -84,17 +84,17 @@ When ``max_width`` is set and text overflows, ``overflow_left`` and
 Rendering Helpers
 -----------------
 
-:class:`~blessed.line_editor.LineEditor` provides three render methods that
+:class:`~hamingjur.line_editor.LineEditor` provides three render methods that
 build complete escape-sequence strings from the current display state:
 
-:meth:`~blessed.line_editor.LineEditor.render`
+:meth:`~hamingjur.line_editor.LineEditor.render`
    Full redraw, always produces correct output.
 
-:meth:`~blessed.line_editor.LineEditor.render_insert`
+:meth:`~hamingjur.line_editor.LineEditor.render_insert`
    Fast-path after a character insert at end of buffer.  Returns ``None``
    when a full redraw is needed instead.
 
-:meth:`~blessed.line_editor.LineEditor.render_backspace`
+:meth:`~hamingjur.line_editor.LineEditor.render_backspace`
    Fast-path after a backspace at end of buffer.  Returns ``None``
    when a full redraw is needed instead.
 
@@ -107,10 +107,10 @@ pattern.
 Other Methods
 -------------
 
-:meth:`~blessed.line_editor.LineEditor.clear`
+:meth:`~hamingjur.line_editor.LineEditor.clear`
    Reset the buffer, cursor, and undo history.
 
-:meth:`~blessed.line_editor.LineEditor.set_password_mode`
+:meth:`~hamingjur.line_editor.LineEditor.set_password_mode`
    Toggle password masking on or off mid-session.
 
 .. _line_editor_constructor:
@@ -118,18 +118,18 @@ Other Methods
 Constructor Options
 -------------------
 
-Beyond the styling and keybinding options shown above, :class:`~blessed.line_editor.LineEditor`
+Beyond the styling and keybinding options shown above, :class:`~hamingjur.line_editor.LineEditor`
 accepts:
 
 ``password``
    If ``True``, start in password mode (characters are masked).  Toggle at
-   runtime with :meth:`~blessed.line_editor.LineEditor.set_password_mode`.
+   runtime with :meth:`~hamingjur.line_editor.LineEditor.set_password_mode`.
 
 ``password_char``
    Replacement character shown in password mode (default ``"⚻"``).
 
 ``limit``
-   Maximum buffer length in characters (default 65536).
+   Optional maximum buffer length in characters (default ``0``, unlimited).
 
 ``limit_bell``
    Bell string emitted when the limit is reached (default ``"\\a"``).
@@ -144,8 +144,8 @@ Custom Keybindings
 
 Pass a ``keymap`` dict to override or extend the default emacs/readline bindings.
 Keys are :class:`~.Keystroke` ``.name`` strings (e.g. ``"KEY_CTRL_K"``), values are
-callables accepting a :class:`~blessed.line_editor.LineEditor` and returning a
-:class:`~blessed.line_editor.LineEditResult`.
+callables accepting a :class:`~hamingjur.line_editor.LineEditor` and returning a
+:class:`~hamingjur.line_editor.LineEditResult`.
 
 Override an existing binding::
 

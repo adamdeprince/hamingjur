@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Display all termino styles supported by the terminal."""
-from blessed import Terminal
+from hamingjur import Terminal
 
 term = Terminal()
 print(term.home + term.clear)

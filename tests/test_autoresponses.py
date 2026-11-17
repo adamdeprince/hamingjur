@@ -11,7 +11,7 @@ except ImportError:
     import mock
 
 # local
-from blessed._capabilities import ITerm2Capabilities, TextSizingResult
+from hamingjur._capabilities import ITerm2Capabilities, TextSizingResult
 from .conftest import IS_WINDOWS
 from .accessories import TestTerminal, pty_test
 
@@ -268,7 +268,7 @@ def test_get_iterm2_capabilities_timeout():
 def test_does_kitty_notifications_supported(terminator):
     """does_kitty_notifications returns True with OSC 99 response."""
     def child(term):
-        term.ungetch('\x1b]99;i=blessed' + terminator + '\x1b[10;20R')
+        term.ungetch('\x1b]99;i=hamingjur' + terminator + '\x1b[10;20R')
         result = term.does_kitty_notifications(timeout=0.01)
         assert result is True
         return b'OK'

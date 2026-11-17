@@ -8,11 +8,11 @@ from unittest import mock
 import pytest
 
 # local
-import blessed.terminal as terminal_module
-from blessed import Terminal
-from blessed.dec_modes import DecModeResponse
-from blessed.dec_modes import DecPrivateMode as _DPM
-from blessed.keyboard import (
+import hamingjur.terminal as terminal_module
+from hamingjur import Terminal
+from hamingjur.dec_modes import DecModeResponse
+from hamingjur.dec_modes import DecPrivateMode as _DPM
+from hamingjur.keyboard import (
     Keystroke,
     _match_dec_event,
     BracketedPasteEvent,
@@ -1098,7 +1098,7 @@ def test_notify_on_resize_cache_cleared_on_exit():
 
             # Set cache inside context
             with term.notify_on_resize():
-                from blessed.terminal import WINSZ
+                from hamingjur.terminal import WINSZ
                 term._preferred_size_cache = WINSZ(ws_row=50, ws_col=100,
                                                    ws_xpixel=500, ws_ypixel=1000)
                 assert term._preferred_size_cache is not None
@@ -1114,7 +1114,7 @@ def test_height_width_use_preferred_cache():
         stream = io.StringIO()
         term = TestTerminal(stream=stream, force_styling=True)
 
-        from blessed.terminal import WINSZ
+        from hamingjur.terminal import WINSZ
         term._preferred_size_cache = WINSZ(ws_row=42, ws_col=123,
                                            ws_xpixel=2460, ws_ypixel=840)
 
@@ -1131,7 +1131,7 @@ def test_sixel_uses_preferred_cache():
         stream = io.StringIO()
         term = TestTerminal(stream=stream, force_styling=True)
 
-        from blessed.terminal import WINSZ
+        from hamingjur.terminal import WINSZ
         term._preferred_size_cache = WINSZ(ws_row=40, ws_col=100,
                                            ws_xpixel=2000, ws_ypixel=800)
 
@@ -1147,7 +1147,7 @@ def test_sixel_ignores_zero_pixel_cache():
         stream = io.StringIO()
         term = TestTerminal(stream=stream, force_styling=True)
 
-        from blessed.terminal import WINSZ
+        from hamingjur.terminal import WINSZ
         term._preferred_size_cache = WINSZ(ws_row=40, ws_col=100,
                                            ws_xpixel=0, ws_ypixel=0)
 
@@ -1211,7 +1211,7 @@ def test_inkey_updates_preferred_cache_on_resize_event():
         assert ks.name == 'RESIZE_EVENT'
 
         # Verify the preferred cache was updated
-        from blessed.terminal import WINSZ
+        from hamingjur.terminal import WINSZ
         assert term._preferred_size_cache is not None
         expected = WINSZ(ws_row=30, ws_col=120, ws_xpixel=1920, ws_ypixel=600)
         assert term._preferred_size_cache == expected

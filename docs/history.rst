@@ -1,7 +1,14 @@
-.. py:currentmodule:: blessed.terminal
+.. py:currentmodule:: hamingjur.terminal
 
 Version History
 ===============
+
+0.1.1 (2026-11-17)
+  * Fix Silkie packed grayscale format numbers to ``301/302/304/308`` and RGB565
+    to ``516`` in image uploads, preparation, probes and the showcase.
+  * Support palette formats ``401/402/404/408`` and high precision formats
+    ``316/632/664`` with their correct payload sizes and complete probe samples.
+  * Preserve formats ``8`` and ``16`` for terminal palette indices.
 
 1.52 (unreleased, on "master" branch only)
   * bugfix: :meth:`~Terminal.wrap` discarded lines containing only spaces or tabs when
@@ -103,7 +110,7 @@ Version History
 1.40
   * improved: jinxed_ is **now required on all platforms**, providing a curses-free and
     `singleton-free <https://jinxed.readthedocs.io/en/stable/capabilities.html#singleton-free>`_
-    implementation of the subset of curses_ used by blessed.  The jinxed_ 1.5.0 release provides a
+    implementation of the subset of curses_ used by hamingjur.  The jinxed_ 1.5.0 release provides a
     terminal `capability database
     <https://jinxed.readthedocs.io/en/stable/capabilities.html#database>` of 45 terminals and their
     common aliases.
@@ -157,7 +164,7 @@ Version History
   * bugfix: ``EOF`` when stdin is connected to a Pipe (eg. pytest capture) caused infinite loop
     :ghpull:`366`.
   * bugfix: Background SGR not applying to text/suggestion content in
-    :class:`blessed.line_editor.LineEditor`, now prepend bg_sgr before each content SGR sequence.
+    :class:`hamingjur.line_editor.LineEditor`, now prepend bg_sgr before each content SGR sequence.
   * bugfix: OSC responses for 'ST' in addition to 'BEL' terminated iTerm2 capabilities,
     Kitty notifications, Kitty pointer shapes responses
 
@@ -176,7 +183,7 @@ Version History
 
 1.35
   * introduced: :meth:`~.Terminal.cursor_shape` context manager and
-    :class:`~blessed.cursor_shape.CursorShape` constants for DECSCUSR cursor shape control
+    :class:`~hamingjur.cursor_shape.CursorShape` constants for DECSCUSR cursor shape control
     (block, underline, bar -- steady or blinking).
   * introduced: methods :meth:`~Keystroke.key_name` and :meth:`~Keystroke.key_value` allow for
     better key and value tracking when using kitty keyboard protocol with pressed, released, and
@@ -194,7 +201,7 @@ Version History
   * bugfix: :meth:`~.Terminal.async_inkey` no longer raises NotImplementedError on Windows.
 
 1.33
-  * bugfix: :class:`blessed.line_editor.LineEditor` exceed limit when using Yank (Ctrl+Y).
+  * bugfix: :class:`hamingjur.line_editor.LineEditor` exceed limit when using Yank (Ctrl+Y).
 
 1.32
   * bugfix: :meth:`~.Terminal.get_kitty_keyboard_state` should not check for
@@ -215,7 +222,7 @@ Version History
     :meth:`~.Terminal.get_device_attributes`, and :meth:`~.Terminal.get_software_version`.
   * introduced: :meth:`~.Terminal.async_inkey` -- asyncio-compatible version of
     :meth:`~.Terminal.inkey`.
-  * introduced: :class:`blessed.line_editor.LineEditor`, a "headless" single-line editor.
+  * introduced: :class:`hamingjur.line_editor.LineEditor`, a "headless" single-line editor.
   * introduced: :meth:`~.Terminal.get_xtgettcap` -- query terminal capabilities via XTGETTCAP and
     :meth:`~.Terminal.get_iterm2_capabilities` for iTerm2 protocol features.
   * introduced: terminal feature detection methods :meth:`~.Terminal.does_bracketed_paste`,
@@ -257,14 +264,14 @@ Version History
     by :ghpull:`306`, this release re-applies the fix, :ghpull:`326`.
 
 1.24
-  * bugfix: :meth:`blessed.Terminal`get_sixel_height_and_width` detection order
+  * bugfix: :meth:`hamingjur.Terminal`get_sixel_height_and_width` detection order
     and improve documentation for window resize event handling :ghpull:`320`
   * bugfix: change default argument ``timeout=None`` to ``timeout=1`` in methods
     requiring automatic response, preventing stalls on "dumb" terminals :ghpull:`317`
 
 1.23
   * introduced: Environment values FORCE_COLOR_, CLICOLOR_FORCE_, and NO_COLOR_ overrides
-    :class:`blessed.Terminal` argument value, ``force_styling`` :ghpull:`295`
+    :class:`hamingjur.Terminal` argument value, ``force_styling`` :ghpull:`295`
   * improved: performance of :meth:`~Terminal.rgb_downconvert` for 256-color
     terminals, :ghpull:`298`.
   * deprecated: Python 2.7 through 3.6 no longer supported. :ghpull:`299`.
@@ -333,7 +340,7 @@ Version History
     support or general curiosity.
   * introduced: :meth:`~.Terminal.formatter` which returns callable formatters for valid text
     formatters such as  'red' or 'bold_on_red', returning a
-    :class:`~blessed.formatters.NullCallableString` if passed an invalid text formatter.
+    :class:`~hamingjur.formatters.NullCallableString` if passed an invalid text formatter.
   * bugfix: prevent ``ValueError: I/O operation on closed file`` on ``sys.stdin`` in multiprocessing
     environments, where the keyboard wouldn't work, anyway.
   * bugfix: prevent error condition, ``ValueError: underlying buffer has been detached`` in rare
@@ -380,7 +387,7 @@ Version History
     :ghissue:`74`.
   * bugfix: TypeError when using ``PYTHONOPTIMIZE=2`` environment variable,
     :ghissue:`84`.
-  * bugfix: define ``blessed.__version__`` value,
+  * bugfix: define ``hamingjur.__version__`` value,
     :ghissue:`92`.
   * bugfix: detect sequences ``\x1b[0K`` and ``\x1b2K``,
     :ghissue:`95`.
@@ -388,7 +395,7 @@ Version History
 1.13
   * enhancement: :meth:`~.Terminal.split_seqs` introduced, and 4x cost
     reduction in related sequence-aware functions, :ghissue:`29`.
-  * deprecated: ``blessed.sequences.measure_length`` function superseded by
+  * deprecated: ``hamingjur.sequences.measure_length`` function superseded by
     :func:`~.iter_parse` if necessary.
   * deprecated: warnings about "binary-packed capabilities" are no longer
     emitted on strange terminal types, making best effort.
@@ -558,7 +565,8 @@ Version History
     termcap entries for ``setaf`` and ``setab`` are not available.
   * Allowed :attr:`~.color` to act as an unparametrized string, not just a
     callable.
-  * Made :attr:`~.height` and :attr:`~.width` examine any passed-in stream
+  * Made :attr:`~hamingjur.terminal.Terminal.height` and
+    :attr:`~hamingjur.terminal.Terminal.width` examine any passed-in stream
     before falling back to stdout (This rarely if ever affects actual behavior;
     it's mostly philosophical).
   * Made caching simpler and slightly more efficient.

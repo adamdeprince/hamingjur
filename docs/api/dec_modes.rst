@@ -1,6 +1,6 @@
 dec_modes.py
 ------------
 
-.. automodule:: blessed.dec_modes
+.. automodule:: hamingjur.dec_modes
    :members:
    :undoc-members:

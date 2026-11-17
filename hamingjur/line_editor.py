@@ -79,11 +79,13 @@ class LineHistory:
     """
     In-memory command history with navigation and prefix search.
 
-    :param max_entries: Maximum number of history entries retained.
+    :param max_entries: Optional maximum history size; None retains all entries.
     """
 
-    def __init__(self, max_entries: int = 5000) -> None:
-        """Initialize history with given maximum capacity."""
+    def __init__(self, max_entries: Optional[int] = None) -> None:
+        """Initialize history, with an optional caller-selected retention limit."""
+        if max_entries is not None and max_entries < 1:
+            raise ValueError('max_entries must be positive or None')
         #: History entries list (most recent last).
         self.entries: List[str] = []
         self._max_entries = max_entries
@@ -97,7 +99,7 @@ class LineHistory:
         if self.entries and self.entries[-1] == line:
             return
         self.entries.append(line)
-        if len(self.entries) > self._max_entries:
+        if self._max_entries is not None and len(self.entries) > self._max_entries:
             del self.entries[:-self._max_entries]
 
     def search_prefix(self, prefix: str) -> Optional[str]:
@@ -136,7 +138,7 @@ class LineEditor:  # pylint: disable=too-many-instance-attributes
     Headless single-line editor with grapheme-aware cursor movement.
 
     Feed keystrokes via :meth:`feed_key`, read display state via
-    :attr:`display`.  Accepts blessed :class:`~.Keystroke` objects
+    :attr:`display`.  Accepts hamingjur :class:`~.Keystroke` objects
     directly (dispatching on ``.name``), or plain strings for testing.
 
     Custom keymap handlers must be callables accepting a single
@@ -154,7 +156,7 @@ class LineEditor:  # pylint: disable=too-many-instance-attributes
         password_char: str = PASSWORD_CHAR,
         max_width: int = 0,
         ellipsis: str = "\u2026",
-        limit: int = 2048,
+        limit: int = 0,
         limit_bell: str = "\a",
         scroll_jump: float = 0.5,
         text_sgr: str = "\x1b[38;2;230;225;220m",
@@ -171,7 +173,7 @@ class LineEditor:  # pylint: disable=too-many-instance-attributes
         self._history = history or LineHistory()
         self._password_mode: bool = password
         self.password_char: str = password_char
-        self._kill_ring: Deque[str] = deque(maxlen=64)
+        self._kill_ring: Deque[str] = deque()
         self._undo_stack: List[Tuple[List[str], int]] = []
         self._navigating_history: bool = False
         self.max_width: int = max_width
@@ -256,7 +258,7 @@ class LineEditor:  # pylint: disable=too-many-instance-attributes
         """
         Build escape sequences to render the current display state.
 
-        :param term: Blessed :class:`~.Terminal` instance for cursor/SGR.
+        :param term: Hamingjur :class:`~.Terminal` instance for cursor/SGR.
         :param row: Terminal row for the input line.
         :param width: Available columns.
         :param col: Starting column offset (default 0).
@@ -298,7 +300,7 @@ class LineEditor:  # pylint: disable=too-many-instance-attributes
         """
         Fast-path render for a single grapheme inserted at end of buffer.
 
-        :param term: Blessed :class:`~.Terminal` instance.
+        :param term: Hamingjur :class:`~.Terminal` instance.
         :param row: Terminal row for the input line.
         :param grapheme: The grapheme cluster just inserted.
         :returns: Escape-sequence string, or ``None`` if a full redraw is needed.
@@ -328,7 +330,7 @@ class LineEditor:  # pylint: disable=too-many-instance-attributes
         """
         Fast-path render after a backspace at end of buffer.
 
-        :param term: Blessed :class:`~.Terminal` instance.
+        :param term: Hamingjur :class:`~.Terminal` instance.
         :param row: Terminal row for the input line.
         :returns: Escape-sequence string, or ``None`` if a full redraw is needed.
         """
@@ -430,8 +432,6 @@ class LineEditor:  # pylint: disable=too-many-instance-attributes
 
     def _save_undo(self) -> None:
         self._undo_stack.append((list(self._buf), self._cursor))
-        if len(self._undo_stack) > 100:
-            del self._undo_stack[:-100]
 
     def _insert_at_cursor(self, text: str, check_limit: bool = True,
                           filter_control: bool = False) -> int:

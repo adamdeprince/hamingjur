@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from blessed import Terminal
+from hamingjur import Terminal
 
 term = Terminal()
 counts = dict()

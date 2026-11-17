@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Example of Terminal.scroll_region()."""
-from blessed import Terminal
+from hamingjur import Terminal
 
 term = Terminal()
 

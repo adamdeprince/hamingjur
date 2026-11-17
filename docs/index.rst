@@ -1,11 +1,17 @@
-=================================
-Welcome to Blessed documentation!
-=================================
+===================================
+Welcome to Hamingjur documentation!
+===================================
 
 .. toctree::
    :maxdepth: 3
 
    intro
+   features
+   images
+   silkie_extensions
+   window
+   remote_control
+   terminal_protocols
    terminal
    colors
    keyboard

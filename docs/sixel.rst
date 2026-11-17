@@ -1,7 +1,7 @@
 Sixel Graphics
 ==============
 
-Blessed provides support for querying sixel graphics capabilities in modern
+Hamingjur provides support for querying sixel graphics capabilities in modern
 terminal emulators.  Sixel is a bitmap graphics format that allows applications
 to display inline images directly in the terminal.
 

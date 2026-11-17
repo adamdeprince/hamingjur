@@ -2,7 +2,7 @@
 """Demoscene sine-wave scroller with per-character text sizing."""
 import math
 import time
-import blessed
+import hamingjur
 from wcwidth import TextSizing, TextSizingParams, iter_graphemes, wcswidth
 
 TARGET_FPS = 60.0
@@ -97,7 +97,7 @@ def _sized_char(ch, target, term, v_align=0, h_align=0):
 
 
 def main():
-    term = blessed.Terminal()
+    term = hamingjur.Terminal()
     screen_w = term.width
     screen_h = term.height
     vert_amp = screen_h // 3

@@ -35,7 +35,7 @@ import sys
 import collections
 
 # local
-from blessed import Terminal
+from hamingjur import Terminal
 
 
 def main():
@@ -72,7 +72,7 @@ def main():
             lines, columns = pos.row, pos.column
 
         else:
-            # size could not be determined. Oh well, the built-in blessed
+            # size could not be determined. Oh well, the built-in hamingjur
             # properties will use termios if available, falling back to
             # existing environment values if it has to.
             lines, columns = term.height, term.width

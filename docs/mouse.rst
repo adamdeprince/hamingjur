@@ -3,18 +3,18 @@
 Mouse Input
 ===========
 
-Blessed supports mouse input in the terminal! Your applications can respond to
+Hamingjur supports mouse input in the terminal! Your applications can respond to
 clicks, drags, scroll wheel, or track live mouse cursor movement, even at the
 pixel-level, for creating interactive games and apps.
 
 Overview:
 
-* Check for support using :meth:`~blessed.Terminal.does_mouse`
-* Enable mouse input with :meth:`~blessed.Terminal.mouse_enabled`
-* Receive events through :meth:`~blessed.Terminal.inkey`
+* Check for support using :meth:`~hamingjur.Terminal.does_mouse`
+* Enable mouse input with :meth:`~hamingjur.Terminal.mouse_enabled`
+* Receive events through :meth:`~hamingjur.Terminal.inkey`
 
 Mouse events work seamlessly with keyboard events - both come through the same
-:meth:`~blessed.Terminal.inkey` method.
+:meth:`~hamingjur.Terminal.inkey` method.
 
 Getting Started
 ---------------
@@ -36,7 +36,7 @@ also use magic method predicates like ``inp.is_mouse_left()``.
 
 .. note::
 
-   Mouse coordinates are **0-indexed**, matching blessed's terminal movement
+   Mouse coordinates are **0-indexed**, matching Hamingjur's terminal movement
    functions like :meth:`~.Terminal.move_yx`. The top-left corner is ``(y=0, x=0)``,
    not ``(1, 1)``. This allows direct use of mouse coordinates with movement functions.
 
@@ -114,7 +114,7 @@ Checking Support
 
 Not all terminals support mouse tracking or all kinds of mouse tracking.
 
-Use :meth:`~blessed.Terminal.does_mouse` to check before enabling:
+Use :meth:`~hamingjur.Terminal.does_mouse` to check before enabling:
 
 .. literalinclude:: ../bin/mouse_query.py
    :language: python
@@ -134,10 +134,10 @@ supported.
 Using mouse_enabled()
 ---------------------
 
-The :meth:`~blessed.Terminal.mouse_enabled` context manager enables the appropriate
+The :meth:`~hamingjur.Terminal.mouse_enabled` context manager enables the appropriate
 :ref:`dec private modes` depending on the simplified arguments given.
 
-:meth:`~blessed.Terminal.mouse_enabled` accepts these keyword-only parameters:
+:meth:`~hamingjur.Terminal.mouse_enabled` accepts these keyword-only parameters:
 
 * ``clicks=True`` - Enable basic click reporting (default).
 * ``report_drag=False`` - Report motion while a button is held.
@@ -221,13 +221,13 @@ properties represent pixels instead of character cells.
 Legacy Mouse Protocols
 ----------------------
 
-Blessed always prefers the SGR protocol (:ref:`dec private modes` 1006 and 1016), and
+Hamingjur always prefers the SGR protocol (:ref:`dec private modes` 1006 and 1016), and
 :meth:`~.Terminal.mouse_enabled` negotiates it for you.  However, a legacy terminal
 supporting the X10-era protocol of modes 1000, 1002, and 1003 is decoded when it arrives, but is
 reached only by historical terminals that dot support SGR.
 
 Legacy mouse protocols have one major difference, that a button release does not report *which*
-button was released.  Blessed names this ``MOUSE_RELEASED`` (or, with modifiers,
+button was released.  Hamingjur names this ``MOUSE_RELEASED`` (or, with modifiers,
 ``MOUSE_CTRL_RELEASED``).
 
 Legacy mouse protocols also have coordinate limitations, values above 223 cannot be encoded, and,

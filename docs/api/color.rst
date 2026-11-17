@@ -1,7 +1,7 @@
 color.py
 --------
 
-.. automodule:: blessed.color
+.. automodule:: hamingjur.color
    :members:
    :undoc-members:
    :private-members:

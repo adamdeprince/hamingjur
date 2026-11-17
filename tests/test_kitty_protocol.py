@@ -7,8 +7,8 @@ import math
 import pytest
 import platform
 
-from blessed import Terminal
-from blessed.keyboard import (
+from hamingjur import Terminal
+from hamingjur.keyboard import (
     KEY_TAB, KEY_LEFT_SHIFT, KEY_LEFT_CONTROL, KEY_RIGHT_ALT,
     _match_kitty_key, KittyKeyEvent, Keystroke, KittyKeyboardProtocol, resolve_sequence,
     _match_legacy_csi_letter_form,

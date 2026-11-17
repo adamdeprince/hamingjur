@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Example application for the 'blessed' Terminal library for python.
+Example application for the 'hamingjur' Terminal library for python.
 
 It is also an experiment in functional programming.
 """
@@ -11,7 +11,7 @@ from random import randrange
 from collections import namedtuple
 
 # local
-from blessed import Terminal
+from hamingjur import Terminal
 
 
 def echo(text):

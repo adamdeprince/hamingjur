@@ -2,21 +2,20 @@
 # std imports
 import io
 import os
-import select
 import sys
 import time
+import select
+from unittest import mock
 
 # 3rd party
 import pytest
-from unittest import mock
 
 # local
-from blessed._capabilities import (XTGETTCAP_INIT_CAPABILITIES,
-                                   TermcapResponse,
-                                   ITerm2Capabilities)
-from blessed.terminal import Terminal
+from hamingjur.terminal import Terminal
+from hamingjur._capabilities import XTGETTCAP_INIT_CAPABILITIES, TermcapResponse, ITerm2Capabilities
+# local
 from .conftest import IS_WINDOWS
-from .accessories import TestTerminal, pty_test, NO_XTGETTCAP_DATA
+from .accessories import NO_XTGETTCAP_DATA, TestTerminal, pty_test
 
 
 def test_hex_encode():
@@ -138,7 +137,7 @@ def test_init_descriptor_stdout_valueerror():
     mock_term.tigetnum.return_value = 0
     with mock.patch.object(sys.__stdout__, 'fileno',
                            side_effect=ValueError('detached stdout')), \
-            mock.patch('blessed.terminal.jinxed.Terminal', return_value=mock_term):
+            mock.patch('hamingjur.terminal.jinxed.Terminal', return_value=mock_term):
         t = Terminal(stream=io.StringIO(), force_styling=True)
         assert any('stdout may be detached or closed' in err for err in t.errors)
         assert t.number_of_colors == 0
@@ -1318,8 +1317,8 @@ def test_query_boundary_multiple_unqueryable():
 def test_xtgettcap_skip_early_conhost(env, build, skipped):
     """XTGETTCAP init probe skipped only for Windows console builds that leak DCS."""
     with mock.patch.dict(os.environ, env, clear=True), \
-            mock.patch('blessed.terminal.IS_WINDOWS', True), \
-            mock.patch('blessed.terminal.get_console_input_encoding', create=True,
+            mock.patch('hamingjur.terminal.IS_WINDOWS', True), \
+            mock.patch('hamingjur.terminal.get_console_input_encoding', create=True,
                        return_value='UTF-8'), \
             mock.patch.object(sys, 'getwindowsversion', create=True,
                               return_value=mock.Mock(build=build)), \
@@ -1334,7 +1333,8 @@ def test_xtgettcap_skip_early_conhost(env, build, skipped):
 
 def test_xtgettcap_partial_response_defers():
     """A partial XTGETTCAP reply resolves as bare KEY_ESCAPE, so inkey() awaits the rest."""
-    from blessed.keyboard import resolve_sequence
+    # local
+    from hamingjur.keyboard import resolve_sequence
     term = TestTerminal(stream=io.StringIO(), force_styling=True)
     ks = resolve_sequence('\x1bP1+r524742', term._keymap, term._keycodes,
                           term._keymap_prefixes, final=False)

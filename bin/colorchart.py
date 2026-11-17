@@ -10,9 +10,9 @@ import timeit
 import colorsys
 
 # local
-import blessed
-from blessed.color import COLOR_DISTANCE_ALGORITHMS
-from blessed.colorspace import X11_COLORNAMES_TO_RGB
+import hamingjur
+from hamingjur.color import COLOR_DISTANCE_ALGORITHMS
+from hamingjur.colorspace import X11_COLORNAMES_TO_RGB
 
 
 def sort_colors():
@@ -68,7 +68,7 @@ def draw_chart(term):
 
 def color_chart(term):
     """Main color chart application."""
-    term = blessed.Terminal()
+    term = hamingjur.Terminal()
     algo_idx = 0
     dirty = True
     with term.cbreak(), term.hidden_cursor(), term.fullscreen():
@@ -90,4 +90,4 @@ def color_chart(term):
 
 
 if __name__ == '__main__':
-    color_chart(blessed.Terminal())
+    color_chart(hamingjur.Terminal())

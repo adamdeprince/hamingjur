@@ -131,6 +131,7 @@ CAPABILITIES_RAW_MIXIN: typing.Dict[str, str] = {
 CAPABILITIES_ADDITIVES: typing.Dict[
     str, typing.Union[typing.Tuple[str, str, int], typing.Tuple[str, str]]] = {
     'link': (rf'{_ESC}\]8;{_ANY_NOTESC};{_ANY_NOTESC}(?:{_ESC}\\|\x07)', 'link', 1),
+    'silkie': (rf'{_ESC}\]777;[^\x1b\x07]*(?:{_ESC}\\|\x07)', ''),
     'color256': (rf'{_CSI}38;5;\d+m', 'color', 1),
     'on_color256': (rf'{_CSI}48;5;\d+m', 'on_color', 1),
     'color_rgb': (rf'{_CSI}38;2;\d+;\d+;\d+m', 'color_rgb', 3),
@@ -262,9 +263,9 @@ XTGETTCAP_CAPABILITIES = (
     ("sitm", "Enter italics mode"),
     ("ritm", "Exit italics mode"),
     ("cvvis", "Very visible cursor"),
-    # And here is where blessed's integration ends. All remaining capabilities, for blessed's
+    # And here is where hamingjur's integration ends. All remaining capabilities, for hamingjur's
     # purposes, are informational only. Used by the downstream 'ucs-detect' tool for auditing and
-    # fingerprinting purposes, like "kitty-query-clipboard_control" but not used by blessed
+    # fingerprinting purposes, like "kitty-query-clipboard_control" but not used by hamingjur
     # directly.
     #
     # Remaining numeric capabilities
@@ -602,7 +603,7 @@ class TermcapResponse:
         """
         Terminal name from ``TN`` capability, or ``None``.
 
-        .. deprecated:: This alias is not useful or used by blessed.
+        .. deprecated:: This alias is not useful or used by hamingjur.
         """
         return self.capabilities.get('TN')
 
@@ -611,7 +612,7 @@ class TermcapResponse:
         """
         Number of colors from ``colors`` capability, or ``None``.
 
-        .. deprecated:: This value is not useful or used by blessed.
+        .. deprecated:: This value is not useful or used by hamingjur.
         """
         val = self.capabilities.get('colors')
         if val is not None:

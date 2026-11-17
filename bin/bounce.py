@@ -5,7 +5,7 @@
 from math import floor
 
 # local
-from blessed import Terminal
+from hamingjur import Terminal
 
 
 def roundxy(x, y):

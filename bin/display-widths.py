@@ -4,7 +4,7 @@
 #         Invalid module name "display-terminal-width"
 
 # local
-from blessed import Terminal
+from hamingjur import Terminal
 
 LABEL_WIDTH = 20
 CELL_WIDTH = 12

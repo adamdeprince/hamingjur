@@ -1,4 +1,4 @@
-"""Core blessed Terminal() tests."""
+"""Core hamingjur Terminal() tests."""
 
 # std imports
 import base64
@@ -20,14 +20,16 @@ import pytest
 # local
 from .conftest import IS_WINDOWS
 from .accessories import TestTerminal, unicode_cap, pty_test, NO_XTGETTCAP_DATA, as_subprocess
-from blessed._capabilities import TermcapResponse
+from hamingjur._capabilities import TermcapResponse
 
 
-def test_export_only_Terminal():
+def test_public_exports():
     "Ensure only expected names are exported for import * statements."
 
-    import blessed
-    assert blessed.__all__ == ('Terminal', 'LineEditor', 'LineHistory')
+    import hamingjur
+    assert hamingjur.__all__ == (
+        'Terminal', 'LineEditor', 'LineHistory', 'graphics', 'kitty', 'protocols', 'silkie',
+        'Transfer', 'ImageSupport', 'PreparedImage', 'DrawnImage')
 
 
 def test_null_location(any_term):
@@ -474,17 +476,17 @@ def test_win32_missing_tty_modules(monkeypatch):
                 __builtins__['__import__'] = __import__
             try:
 
-                import blessed.terminal
-                importlib.reload(blessed.terminal)
+                import hamingjur.terminal
+                importlib.reload(hamingjur.terminal)
             except UserWarning as err:
-                assert err.args[0] == blessed.terminal._MSG_NOSUPPORT
+                assert err.args[0] == hamingjur.terminal._MSG_NOSUPPORT
 
             warnings.filterwarnings("ignore", category=UserWarning)
 
-            import blessed.terminal
-            importlib.reload(blessed.terminal)
-            assert not blessed.terminal.HAS_TTY
-            term = blessed.terminal.Terminal('ansi')
+            import hamingjur.terminal
+            importlib.reload(hamingjur.terminal)
+            assert not hamingjur.terminal.HAS_TTY
+            term = hamingjur.terminal.Terminal('ansi')
 
             assert term.height == 25
             assert term.width == 80
@@ -496,8 +498,8 @@ def test_win32_missing_tty_modules(monkeypatch):
                 __builtins__['__import__'] = original_import
             warnings.resetwarnings()
 
-            import blessed.terminal
-            importlib.reload(blessed.terminal)
+            import hamingjur.terminal
+            importlib.reload(hamingjur.terminal)
 
     child()
 
@@ -505,7 +507,7 @@ def test_win32_missing_tty_modules(monkeypatch):
 def test_time_left():
     """test '_time_left' routine returns correct positive delta difference."""
 
-    from blessed.keyboard import _time_left
+    from hamingjur.keyboard import _time_left
 
     stime = time.time() - 10
 
@@ -518,7 +520,7 @@ def test_time_left():
 def test_time_left_infinite_None():
     """keyboard '_time_left' routine returns None when given None."""
 
-    from blessed.keyboard import _time_left
+    from hamingjur.keyboard import _time_left
     assert _time_left(stime=time.time(), timeout=None) is None
 
 
@@ -1024,7 +1026,7 @@ def test_software_version_xtversion_match():
 def test_kbhit_without_tty(monkeypatch):
     """kbhit returns False when HAS_TTY is False (no termios platform)."""
     term = TestTerminal(stream=StringIO(), force_styling=True)
-    with mock.patch('blessed.terminal.HAS_TTY', False):
+    with mock.patch('hamingjur.terminal.HAS_TTY', False):
         result = term.kbhit(timeout=0)
         assert result is False
 
@@ -1144,7 +1146,7 @@ def test_no_query_without_tty(monkeypatch):
 @pytest.mark.skipif(not IS_WINDOWS, reason='requires jinxed.win32 (msvcrt)')
 def test_windows_init_streams_encoding():
     """__init__streams uses get_console_input_encoding when IS_WINDOWS is True."""
-    import blessed.terminal as bt
+    import hamingjur.terminal as bt
     with mock.patch.object(bt, 'IS_WINDOWS', True), \
             mock.patch.object(bt, 'get_console_input_encoding', return_value='cp1252'), \
             mock.patch('os.isatty', return_value=True):
@@ -1154,7 +1156,7 @@ def test_windows_init_streams_encoding():
 
 def test_windows_vtwin10_truecolor():
     """__init__color_capabilities returns 1<<24 for vtwin10 on modern Windows."""
-    import blessed.terminal as bt
+    import hamingjur.terminal as bt
     original_is_windows = bt.IS_WINDOWS
     try:
         bt.IS_WINDOWS = True
@@ -1168,7 +1170,7 @@ def test_windows_vtwin10_truecolor():
 
 def test_windows_ms_terminal_truecolor():
     """__init__color_capabilities returns 1<<24 for ms-terminal on modern Windows."""
-    import blessed.terminal as bt
+    import hamingjur.terminal as bt
     original_is_windows = bt.IS_WINDOWS
     try:
         bt.IS_WINDOWS = True

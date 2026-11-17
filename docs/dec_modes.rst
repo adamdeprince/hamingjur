@@ -7,14 +7,14 @@ DEC Private Modes are terminal control sequences that enable or disable specific
 terminal behaviors like cursor visibility, mouse tracking, alternate screen
 buffers, and modern features like synchronized output.
 
-The blessed library provides a clean API for working with these modes:
+The Hamingjur library provides a clean API for working with these modes:
 
-* Query mode support with :meth:`~blessed.Terminal.get_dec_mode`
-* Enable modes with :meth:`~blessed.Terminal.dec_modes_enabled` context manager
-* Disable modes with :meth:`~blessed.Terminal.dec_modes_disabled` context manager
+* Query mode support with :meth:`~hamingjur.Terminal.get_dec_mode`
+* Enable modes with :meth:`~hamingjur.Terminal.dec_modes_enabled` context manager
+* Disable modes with :meth:`~hamingjur.Terminal.dec_modes_disabled` context manager
 
 Each mode is identified by a constant from
-:attr:`Terminal.DecPrivateMode <blessed.Terminal.DecPrivateMode>`.
+:attr:`Terminal.DecPrivateMode <hamingjur.Terminal.DecPrivateMode>`.
 Our mode catalog is derived from https://wiki.tau.garden/dec-modes/
 
 Overview
@@ -45,14 +45,14 @@ as subsequent calls use cached results. Unsupported modes are gracefully
 ignored - your code continues to work even when a terminal doesn't support
 a specific feature.
 
-You can verify mode support quickly using :meth:`~blessed.Terminal.get_dec_mode`
+You can verify mode support quickly using :meth:`~hamingjur.Terminal.get_dec_mode`
 (see :ref:`querying mode support` below), which also benefits from caching after
 the first query.
 
 Terminals with leaky output, such as Terminal.app, display a DECRQM query as a stray
 ``p`` instead of parsing it.  They are identified by an XTVERSION query made by the
 first mode query, and are never sent a DECRQM query, reporting every mode as
-:attr:`~blessed.dec_modes.DecModeResponse.NOT_QUERIED`.
+:attr:`~hamingjur.dec_modes.DecModeResponse.NOT_QUERIED`.
 
 Getting Started
 ---------------
@@ -80,7 +80,7 @@ Querying Mode Support
 ----------------------
 
 You can check if a terminal supports a specific mode using
-:meth:`~blessed.Terminal.get_dec_mode`. This is useful for adapting your
+:meth:`~hamingjur.Terminal.get_dec_mode`. This is useful for adapting your
 application to different terminal capabilities:
 
 .. literalinclude:: ../bin/dec_modes_query.py
@@ -91,13 +91,13 @@ The ``timeout`` value is unspecified and defaults to 1 second. If a Terminal
 fails to respond in this amount of time, the special property ``failed`` becomes
 ``True``.
 
-The :class:`~blessed.dec_modes.DecModeResponse` object provides helper properties:
+The :class:`~hamingjur.dec_modes.DecModeResponse` object provides helper properties:
 
-* :attr:`~blessed.dec_modes.DecModeResponse.supported` - Mode is recognized
-* :attr:`~blessed.dec_modes.DecModeResponse.enabled` - Mode is currently active
-* :attr:`~blessed.dec_modes.DecModeResponse.disabled` - Mode is currently inactive
-* :attr:`~blessed.dec_modes.DecModeResponse.permanent` - Mode setting cannot be changed
-* :attr:`~blessed.dec_modes.DecModeResponse.failed` - Query failed or timed out
+* :attr:`~hamingjur.dec_modes.DecModeResponse.supported` - Mode is recognized
+* :attr:`~hamingjur.dec_modes.DecModeResponse.enabled` - Mode is currently active
+* :attr:`~hamingjur.dec_modes.DecModeResponse.disabled` - Mode is currently inactive
+* :attr:`~hamingjur.dec_modes.DecModeResponse.permanent` - Mode setting cannot be changed
+* :attr:`~hamingjur.dec_modes.DecModeResponse.failed` - Query failed or timed out
 
 Query results are automatically cached. Use ``force=True`` to bypass the cache:
 
@@ -108,12 +108,12 @@ Quick Boolean Detection
 -----------------------
 
 For the most commonly used modes, convenience methods return a simple boolean
-without needing to inspect the full :class:`~blessed.dec_modes.DecModeResponse`:
+without needing to inspect the full :class:`~hamingjur.dec_modes.DecModeResponse`:
 
-* :meth:`~blessed.Terminal.does_bracketed_paste` -- Bracketed Paste (mode 2004)
-* :meth:`~blessed.Terminal.does_synchronized_output` -- Synchronized Output (mode 2026)
-* :meth:`~blessed.Terminal.does_grapheme_clustering` -- Grapheme Clustering (mode 2027)
-* :meth:`~blessed.Terminal.does_focus_events` -- Focus In/Out Events (mode 1004)
+* :meth:`~hamingjur.Terminal.does_bracketed_paste` -- Bracketed Paste (mode 2004)
+* :meth:`~hamingjur.Terminal.does_synchronized_output` -- Synchronized Output (mode 2026)
+* :meth:`~hamingjur.Terminal.does_grapheme_clustering` -- Grapheme Clustering (mode 2027)
+* :meth:`~hamingjur.Terminal.does_focus_events` -- Focus In/Out Events (mode 1004)
 
 .. code-block:: python
 
@@ -126,15 +126,15 @@ without needing to inspect the full :class:`~blessed.dec_modes.DecModeResponse`:
         print("Bracketed paste supported")
 
 These methods accept the same ``timeout`` parameter as
-:meth:`~blessed.Terminal.get_dec_mode` and benefit from the same caching.
+:meth:`~hamingjur.Terminal.get_dec_mode` and benefit from the same caching.
 
 Context Managers
 ----------------
 
 The recommended way to work with modes is through context managers:
 
-* :meth:`~blessed.Terminal.dec_modes_enabled` - Temporarily enable one or more modes
-* :meth:`~blessed.Terminal.dec_modes_disabled` - Temporarily disable one or more modes
+* :meth:`~hamingjur.Terminal.dec_modes_enabled` - Temporarily enable one or more modes
+* :meth:`~hamingjur.Terminal.dec_modes_disabled` - Temporarily disable one or more modes
 
 These context managers:
 
@@ -154,7 +154,7 @@ You can pass multiple modes to enable them simultaneously:
         # Both modes enabled here
         pass
 
-For commonly-used DEC modes, blessed provides convenient context managers on the
+For commonly-used DEC modes, Hamingjur provides convenient context managers on the
 :class:`~.Terminal` object that make accessing them easier.
 
 These convenience wrappers all contain a default ``timeout`` argument of 1.
@@ -198,9 +198,9 @@ This makes it easy to distinguish between typed and pasted text:
    :linenos:
 
 When :attr:`Keystroke.mode` equals
-:attr:`~blessed.dec_mode.DecPrivateMode.BRACKETED_PASTE`, the
+:attr:`~hamingjur.dec_mode.DecPrivateMode.BRACKETED_PASTE`, the
 :meth:`~.Keystroke.mode_values` method returns a
-:class:`~blessed.keyboard.BracketedPasteEvent` with a ``text`` attribute
+:class:`~hamingjur.keyboard.BracketedPasteEvent` with a ``text`` attribute
 containing the pasted content.
 
 Focus Events
@@ -214,7 +214,7 @@ focus. This is useful for pausing animations or updating status indicators:
    :linenos:
 
 When :attr:`Keystroke.mode` equals
-:attr:`~blessed.dec_mode.DecPrivateMode.FOCUS_IN_OUT_EVENTS`, the
+:attr:`~hamingjur.dec_mode.DecPrivateMode.FOCUS_IN_OUT_EVENTS`, the
 :meth:`~.Keystroke.mode_values` method returns a
-:class:`~blessed.keyboard.FocusEvent` with a ``gained`` attribute indicating
+:class:`~hamingjur.keyboard.FocusEvent` with a ``gained`` attribute indicating
 whether focus was gained (``True``) or lost (``False``).

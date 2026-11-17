@@ -12,7 +12,7 @@
 # screen as a "checksum", but we can pre-compute expected checksums for printable ASCII, building a
 # reverse lookup table that recovers the original characters.
 #
-from blessed import Terminal
+from hamingjur import Terminal
 import argparse
 import json
 import os

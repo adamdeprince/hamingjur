@@ -7,9 +7,9 @@ import re
 import pytest
 
 # local
-from blessed.color import COLOR_DISTANCE_ALGORITHMS
-from blessed.colorspace import RGBColor
-from blessed.formatters import FormattingString, NullCallableString
+from hamingjur.color import COLOR_DISTANCE_ALGORITHMS
+from hamingjur.colorspace import RGBColor
+from hamingjur.formatters import FormattingString, NullCallableString
 # local
 from .accessories import TestTerminal
 
@@ -311,7 +311,7 @@ def test_rgb_downconvert_zero_colors():
 
 def test_hex_to_rgb():
     """Test hex to RGB conversion across formats."""
-    from blessed.colorspace import hex_to_rgb
+    from hamingjur.colorspace import hex_to_rgb
 
     # 3-digit format (each digit doubled: a->aa, b->bb, c->cc)
     assert hex_to_rgb('#abc') == (170, 187, 204)
@@ -326,7 +326,7 @@ def test_hex_to_rgb():
 
 def test_hex_to_rgb_invalid():
     """Test invalid hex color raises ValueError."""
-    from blessed.colorspace import hex_to_rgb
+    from hamingjur.colorspace import hex_to_rgb
 
     with pytest.raises(ValueError):
         hex_to_rgb('#gg')
@@ -338,7 +338,7 @@ def test_hex_to_rgb_invalid():
 
 def test_rgb_to_hex():
     """Test RGB to hex conversion."""
-    from blessed.colorspace import rgb_to_hex
+    from hamingjur.colorspace import rgb_to_hex
 
     assert rgb_to_hex(90, 5, 203) == '#5a05cb'
 
@@ -351,7 +351,7 @@ def test_rgb_to_hex():
 
 def test_xparse_color():
     """Test XParseColor scaling for terminal color responses."""
-    from blessed.colorspace import xparse_color
+    from hamingjur.colorspace import xparse_color
 
     # 4 hex digits (16-bit) - unchanged
     assert xparse_color('e5e5') == 0xe5e5
@@ -371,7 +371,7 @@ def test_xparse_color():
 
 def test_xparse_color_errors():
     """Test xparse_color raises errors for invalid input."""
-    from blessed.colorspace import xparse_color
+    from hamingjur.colorspace import xparse_color
 
     with pytest.raises(ValueError):
         xparse_color('')

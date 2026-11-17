@@ -1,4 +1,4 @@
-"""Tests for blessed.line_editor."""
+"""Tests for hamingjur.line_editor."""
 # pylint: disable=too-many-positional-arguments
 
 # 3rd party
@@ -6,9 +6,9 @@ import pytest
 from wcwidth import iter_graphemes, width as wcswidth
 
 # local
-from blessed.line_editor import PASSWORD_CHAR, LineEditor
-from blessed.line_editor import LineHistory as History
-from blessed.line_editor import DisplayState, LineEditResult
+from hamingjur.line_editor import PASSWORD_CHAR, LineEditor
+from hamingjur.line_editor import LineHistory as History
+from hamingjur.line_editor import DisplayState, LineEditResult
 
 
 class MockTerminal:
@@ -490,14 +490,14 @@ class TestLineEditorKillRing:
         r = ed.feed_key(key)
         assert r.changed is False
 
-    def test_kill_ring_capped_at_64(self) -> None:
-        """Test kill ring is capped at 64 entries."""
+    def test_kill_ring_retains_more_than_64_entries(self) -> None:
+        """Repeated kills do not silently evict older entries."""
         ed = _editor()
         for i in range(70):
             ed.feed_key(str(i % 10))
             ed.feed_key(_CTRL_K)
             ed.feed_key(_HOME)
-        assert len(ed._kill_ring) == 64
+        assert len(ed._kill_ring) == 69
 
 
 class TestLineEditorUndo:

@@ -7,10 +7,10 @@ from unittest import mock
 import pytest
 
 # local
-from blessed import Terminal
-from blessed.keyboard import Keystroke, _match_dec_event
-from blessed.mouse import (MouseEvent, MouseSGREvent, MouseLegacyEvent)
-from blessed.dec_modes import DecModeResponse
+from hamingjur import Terminal
+from hamingjur.keyboard import Keystroke, _match_dec_event
+from hamingjur.mouse import (MouseEvent, MouseSGREvent, MouseLegacyEvent)
+from hamingjur.dec_modes import DecModeResponse
 from .accessories import TestTerminal, make_enabled_dec_cache
 from .conftest import IS_WINDOWS
 

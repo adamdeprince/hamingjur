@@ -12,19 +12,16 @@ Would you like to **contribute**?  That's awesome! Pull Requests are always welc
 Fork
 ----
 
-*Blessed* is a fork of `blessings <https://github.com/erikrose/blessings>`_. Apologies for the fork,
-I just couldn't get the :doc:`keyboard`, and later :doc:`location` or :doc:`measuring` code accepted
-upstream after two major initiatives, the effort was better spent in a fork, where the code is
-accepted.
-
-Furthermore, a project in the node.js language of the `same name, blessed
-<https://github.com/chjj/blessed>`_, is **not** related, or a fork of each other in any way.
+Hamingjur is an independent fork of `Blessed <https://github.com/jquast/blessed>`_,
+which was itself forked from `blessings <https://github.com/erikrose/blessings>`_.
+The implementation is maintained in the ``hamingjur`` namespace and can coexist
+with upstream Blessed. See :doc:`features` for its terminal protocol APIs.
 
 License
 -------
 
-*Blessed* is under the MIT License. See the `LICENSE
-<https://github.com/jquast/blessed/blob/master/LICENSE>`_  file. Please enjoy!
+Hamingjur retains the MIT license and the original authors' notices. See the
+`LICENSE <https://github.com/adamdeprince/hamingjur/blob/master/LICENSE>`_ file.
 
 Running Tests
 -------------
@@ -60,7 +57,7 @@ ruj
 Further Reading
 ---------------
 
-As a developer's API, blessed is often bundled with frameworks and toolsets that dive deeper into
+As a developer's API, Hamingjur is often bundled with frameworks and toolsets that dive deeper into
 Terminal I/O programming than :class:`~.Terminal` offers.  Here are some recommended readings to
 help you along:
 
@@ -162,7 +159,7 @@ When people say 'ANSI', they are discussing:
   adjoining phrase "Escape Sequence" is so termed because it follows the ASCII character for the
   escape key (ESC, ``\x1b``).
 
-.. _`issue tracker`: https://github.com/jquast/blessed/issues/
+.. _`issue tracker`: https://github.com/adamdeprince/hamingjur/issues/
 .. _`stackoverflow`: https://stackoverflow.com/
 .. _code page: https://en.wikipedia.org/wiki/Code_page
 .. _IBM CP437: https://en.wikipedia.org/wiki/Code_page_437

@@ -1,12 +1,58 @@
 Examples
 ========
 
-A few programs are provided with blessed to help interactively test the various API features, but
-also serve as examples of using blessed to develop applications.
+A few programs are provided with Hamingjur to help interactively test the various API features, but
+also serve as examples of using Hamingjur to develop applications.
 
 These examples are not distributed with the package -- they are only available in the github
 repository.  You can retrieve them by cloning the repository, or simply downloading the "raw" file
 link.
+
+Silkie feature showcase
+----------------------
+
+Install the checkout and run the interactive dashboard::
+
+    pip install -e .
+    python bin/silkie_showcase.py
+
+The dashboard exercises the Silkie extensions together: font roles, weight and
+slant, HDR text and images, wide gamut, cell transparency, stereo depth and
+fractional phase, packed grayscale and RGB565, animated vector scenes and shaped
+text, image pointers, pen/touch/pad input, scrolling, gestures, haptics,
+terminal-local ink, display changes, low latency, frame timing and SSH-agent
+transport, plus a notification return-route query that displays no popup.
+Features without a successful probe or granted reporting mode are
+marked ``not supported``. Input panels show event counts; Tab selects the latest
+complete event's details. ``--events events.jsonl`` appends complete input events
+to disk without truncating long reports.
+
+All status panels and visual samples share one screen. A window of 120 columns
+by 30 rows leaves room for the graphics and ink areas. Smaller windows adapt;
+when there is physically insufficient space, the footer offers ``j``/``k`` to
+scroll the status panels. Resize preserves ink and repositions the graphics.
+Press ``h`` for a haptic tap, ``c`` to clear the ink area, and ``q``, Escape or
+Ctrl-C to exit. Reporting modes, the prior ink brush, pointer shape and terminal
+screen are restored on exit, including termination signals. Ctrl-Z exits cleanly
+instead of suspending with active extension modes.
+
+Hardware-independent protocol support does not prove a visible HDR or stereo
+effect: display headroom, gamut and spatial rendering settings are described in
+the selected feature's details. Pen and gesture reporting can be available even
+when no matching device is attached. The SSH-agent probe requests the identity
+count and closes its connection; it does not request signatures.
+
+Font upload and GPU allocation need application-owned resources, so they show
+``needs --font`` or ``needs surface`` when the protocol is available::
+
+    python bin/silkie_showcase.py --font /path/to/outline-font.ttf
+    python bin/silkie_showcase.py --gpu-surface iosurface:123 \
+        --gpu-width 640 --gpu-height 480
+
+The GPU descriptor must name a real accessible surface kept alive by its owner.
+The script references and refreshes it; it does not allocate a GPU surface.
+Use ``--timeout 1`` on slower connections or ``--fps 2`` for fewer redraws.
+No Pillow or native graphics dependencies are required.
 
 .. note: animations are made using the following CLI example:
 
@@ -23,7 +69,7 @@ link.
 bounce.py
 ---------
 
-https://github.com/jquast/blessed/blob/master/bin/bounce.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/bounce.py
 
 This is a very brief, basic primitive non-interactive version of a "classic tennis" video game. It
 demonstrates basic timed refresh of a bouncing terminal cell.
@@ -32,7 +78,7 @@ demonstrates basic timed refresh of a bouncing terminal cell.
 
 cellestial.py
 -------------
-https://github.com/jquast/blessed/blob/master/bin/cellestial.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/cellestial.py
 
 .. note: animation using 3-pass pipeline,
 
@@ -53,7 +99,7 @@ by hotkeys, or automatic viewing with arguments,
 
 cnn.py
 -------------------
-https://github.com/jquast/blessed/blob/master/bin/cnn.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/cnn.py
 
 This program uses 3rd-party BeautifulSoup and requests library to fetch the cnn website and display
 news article titles using the :meth:`~.Terminal.link` method, so that they may be clicked.
@@ -62,7 +108,7 @@ news article titles using the :meth:`~.Terminal.link` method, so that they may b
 
 detect-multibyte.py
 -------------------
-https://github.com/jquast/blessed/blob/master/bin/detect-multibyte.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/detect-multibyte.py
 
 This program also demonstrates how the :meth:`~.get_location` method
 can be used to reliably test whether the terminal emulator supports
@@ -73,7 +119,7 @@ and measuring the change in cursor location.
 
 editor.py
 ---------
-https://github.com/jquast/blessed/blob/master/bin/editor.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/editor.py
 
 This program demonstrates using the directional keys and noecho input
 mode. It acts as a (very dumb) fullscreen editor, with support for
@@ -83,7 +129,7 @@ saving a file, as well as including a rudimentary line-editor.
 
 keymatrix.py
 ------------
-https://github.com/jquast/blessed/blob/master/bin/keymatrix.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/keymatrix.py
 
 This program displays a special REPL for using :meth:`~.inkey` and displaying
 the returned :class:`~.Keystroke` events, their names, events, and values.
@@ -95,7 +141,7 @@ supported :ref:`kitty` Keyboard Protocols.
 
 on_resize.py
 ------------
-https://github.com/jquast/blessed/blob/master/bin/on_resize.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/on_resize.py
 
 This program uses in-band resize notifications when available, with a SIGWINCH
 signal handler as a fallback on Unix. On Windows, native console resize events
@@ -108,7 +154,7 @@ cross-platform.
 
 plasma.py
 ---------
-https://github.com/jquast/blessed/blob/master/bin/plasma.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/plasma.py
 
 This demonstrates using only :meth:`~.Terminal.on_color_rgb` and the built-in :mod:`colorsys`
 module to quickly display all of the colors of a rainbow in a classic demoscene `plasma effect
@@ -118,7 +164,7 @@ module to quickly display all of the colors of a rainbow in a classic demoscene 
 
 progress_bar.py
 ---------------
-https://github.com/jquast/blessed/blob/master/bin/progress_bar.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/progress_bar.py
 
 .. figure:: https://dxtz6bzwq9sxx.cloudfront.net/blessed_progress_bar.gif
 
@@ -129,7 +175,7 @@ notification sequence using :meth:`~.Terminal.progress_bar`.
 
 resize.py
 ---------
-https://github.com/jquast/blessed/blob/master/bin/resize.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/resize.py
 
 This program demonstrates the :meth:`~.get_location` method,
 behaving similar to `resize(1)
@@ -142,7 +188,7 @@ sequence from the connecting terminal emulator.
 
 tprint.py
 ---------
-https://github.com/jquast/blessed/blob/master/bin/tprint.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/tprint.py
 
 This program demonstrates how users may customize FormattingString
 styles.  Accepting a string style, such as "bold" or "bright_red"
@@ -155,10 +201,10 @@ styling.
 
 worms.py
 --------
-https://github.com/jquast/blessed/blob/master/bin/worms.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/worms.py
 
 This program demonstrates how an interactive game could be made
-with blessed.  It is similar to `NIBBLES.BAS
+with hamingjur.  It is similar to `NIBBLES.BAS
 <https://github.com/tangentstorm/tangentlabs/blob/master/qbasic/NIBBLES.BAS>`_
 or "snake" of early mobile platforms.
 
@@ -166,7 +212,7 @@ or "snake" of early mobile platforms.
 
 x11_colorpicker.py
 ------------------
-https://github.com/jquast/blessed/blob/master/bin/x11_colorpicker.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/x11_colorpicker.py
 
 This program shows all of the X11 colors, demonstrates a basic keyboard-interactive program and
 color selection, but is also a useful utility to pick colors!
@@ -175,7 +221,7 @@ color selection, but is also a useful utility to pick colors!
 
 display-modes.py
 ----------------
-https://github.com/jquast/blessed/blob/master/bin/display-modes.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/display-modes.py
 
 Detect and report all known DEC Private Modes supported by the Terminal and
 display a report.
@@ -184,7 +230,7 @@ display a report.
 
 display-unicode.py
 ------------------
-https://github.com/jquast/blessed/blob/master/bin/display-unicode.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/display-unicode.py
 
 Basic Unicode detection support, for Wide characters, Emojis with ZWJ, Emojis with VS-16, and
 Ambiguous Width as Wide or Narrow by writing effects to the screen and measuring the cursor
@@ -194,7 +240,7 @@ position.
 
 strip.py
 -------------
-https://github.com/jquast/blessed/blob/master/bin/strip.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/strip.py
 
 This wrapper of the :meth:`~Terminal.strip_seqs` method reads text from standard
 input, "strips" away all known output sequences and writes the result to stdout.
@@ -204,7 +250,7 @@ input, "strips" away all known output sequences and writes the result to stdout.
 
 mouse_paint.py
 --------------
-https://github.com/jquast/blessed/blob/master/bin/mouse_paint.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/mouse_paint.py
 
 .. figure:: https://dxtz6bzwq9sxx.cloudfront.net/mouse_paint.gif
 
@@ -214,7 +260,7 @@ This is a basic "paint" program using :ref:`mouse input` with the :ref:`report_m
 
 scroll_region.py
 ----------------
-https://github.com/jquast/blessed/blob/master/bin/scroll_region.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/scroll_region.py
 
 This program demonstrates the :meth:`~.Terminal.scroll_region` context manager to create a
 scrollable area with a fixed header and status bar.
@@ -224,7 +270,7 @@ scrollable area with a fixed header and status bar.
 text_sizing_protocol.py
 -----------------------
 
-https://github.com/jquast/blessed/blob/master/bin/text_sizing_protocol.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/text_sizing_protocol.py
 
 This program demonstrates the various uses of :meth:`~.Terminal.text_sized`, the ``OSC 66``
 `kitty text sizing protocol <https://sw.kovidgoyal.net/kitty/text-sizing-protocol/>`_.
@@ -235,7 +281,7 @@ This program demonstrates the various uses of :meth:`~.Terminal.text_sized`, the
 
 detect-tofus.py
 ---------------
-https://github.com/jquast/blessed/blob/master/bin/detect-tofus.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/detect-tofus.py
 
 This program demonstrates :meth:`~.Terminal.get_font_coverage`, which reports only per-codepoint
 coverage.  Given text files as arguments, reports any "tofus" that might result when rendering them
@@ -246,7 +292,7 @@ implementing one of the font glyph coverage protocols.
 
 scroller.py
 -----------
-https://github.com/jquast/blessed/blob/master/bin/scroller.py
+https://github.com/adamdeprince/hamingjur/blob/master/bin/scroller.py
 
 .. figure:: https://dxtz6bzwq9sxx.cloudfront.net/blessed_text_sizing.gif
 

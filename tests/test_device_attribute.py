@@ -43,7 +43,7 @@ from .accessories import (
     TestTerminal,
     pty_test,
 )
-from blessed.keyboard import DeviceAttribute
+from hamingjur.keyboard import DeviceAttribute
 
 pytestmark = pytest.mark.skipif(
     not TEST_KEYBOARD or IS_WINDOWS,
@@ -361,7 +361,7 @@ def test_device_attribute_from_match_with_whitespace_extensions():
 
 def test_kitty_keyboard_protocol_eq_with_int():
     """Test KittyKeyboardProtocol.__eq__() with int."""
-    from blessed.keyboard import KittyKeyboardProtocol
+    from hamingjur.keyboard import KittyKeyboardProtocol
     proto = KittyKeyboardProtocol(15)
     assert proto == 15
     assert proto != 20
@@ -369,7 +369,7 @@ def test_kitty_keyboard_protocol_eq_with_int():
 
 def test_kitty_keyboard_protocol_eq_with_protocol():
     """Test KittyKeyboardProtocol.__eq__() with another KittyKeyboardProtocol."""
-    from blessed.keyboard import KittyKeyboardProtocol
+    from hamingjur.keyboard import KittyKeyboardProtocol
     proto1 = KittyKeyboardProtocol(15)
     proto2 = KittyKeyboardProtocol(15)
     proto3 = KittyKeyboardProtocol(20)
@@ -379,7 +379,7 @@ def test_kitty_keyboard_protocol_eq_with_protocol():
 
 def test_kitty_keyboard_protocol_eq_with_other_types():
     """Test KittyKeyboardProtocol.__eq__() with non-int, non-KittyKeyboardProtocol types."""
-    from blessed.keyboard import KittyKeyboardProtocol
+    from hamingjur.keyboard import KittyKeyboardProtocol
     proto = KittyKeyboardProtocol(15)
     assert proto != "15"
     assert proto != [15]

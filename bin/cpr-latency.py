@@ -16,7 +16,7 @@ import sys
 import time
 import timeit
 
-from blessed import Terminal
+from hamingjur import Terminal
 
 # Unicode block elements (eighths) for smooth progress bars
 _BLOCKS = ' ▏▎▍▌▋▊▉█'

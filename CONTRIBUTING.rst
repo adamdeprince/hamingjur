@@ -10,12 +10,12 @@ We welcome contributions via GitHub pull requests:
 Developing
 ----------
 
-Prepare a developer environment.  Then, from the blessed code folder::
+Prepare a developer environment.  Then, from the hamingjur code folder::
 
     pip install --editable .
 
 Any changes made in this project folder are then made available to the python
-interpreter as the 'blessed' package from any working directory.
+interpreter as the 'hamingjur' package from any working directory.
 
 Running Tests
 ~~~~~~~~~~~~~

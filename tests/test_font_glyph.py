@@ -5,20 +5,20 @@ import os
 import json
 import time
 import select
-
 from unittest import mock
 
 # 3rd party
 import pytest
 
 # local
+from hamingjur.terminal import (_FONT_QUERY_CHUNK_SIZE,
+                               _RE_MINTTY_FONT_RESPONSE,
+                               _RE_GLYPH_PROTOCOL_Q_RESPONSE,
+                               _RE_GLYPH_PROTOCOL_S_RESPONSE)
+from hamingjur._capabilities import FontCoverage
+# local
 from .conftest import IS_WINDOWS
 from .accessories import TestTerminal, pty_test
-from blessed._capabilities import FontCoverage
-from blessed.terminal import (_FONT_QUERY_CHUNK_SIZE,
-                              _RE_MINTTY_FONT_RESPONSE,
-                              _RE_GLYPH_PROTOCOL_Q_RESPONSE,
-                              _RE_GLYPH_PROTOCOL_S_RESPONSE)
 
 pytestmark = pytest.mark.skipif(
     IS_WINDOWS, reason="PTY testing not supported on Windows")

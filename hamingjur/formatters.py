@@ -10,12 +10,12 @@ import importlib
 from typing import TYPE_CHECKING, Set, List, Tuple, Union, Callable
 
 # local
-from blessed.colorspace import CGA_COLORS, X11_COLORNAMES_TO_RGB
-from blessed._capabilities import CAPABILITY_DATABASE
+from hamingjur.colorspace import CGA_COLORS, X11_COLORNAMES_TO_RGB
+from hamingjur._capabilities import CAPABILITY_DATABASE
 
 if TYPE_CHECKING:  # pragma: no cover
     # local
-    from blessed.terminal import Terminal
+    from hamingjur.terminal import Terminal
 
 # 3rd party
 import jinxed
@@ -31,7 +31,7 @@ def _build_known_capability_names() -> 'frozenset[str]':
             continue
         mod = importlib.import_module(f'jinxed.terminfo.{modname}')
         caps.update(getattr(mod, 'STR_CAPS', {}).keys())
-    # Also include attribute names from blessed's own capability database.
+    # Also include attribute names from hamingjur's own capability database.
     for _name, (attr, _) in CAPABILITY_DATABASE.items():
         caps.add(attr)
     return frozenset(caps)
@@ -116,7 +116,7 @@ class ParameterizingString(str):
 
     For example::
 
-        >>> from blessed import Terminal
+        >>> from hamingjur import Terminal
         >>> term = Terminal()
         >>> color = ParameterizingString(term.color, term.normal, 'color')
         >>> color(9)('color #9')
@@ -178,7 +178,7 @@ class ParameterizingProxyString(str):
     .. deprecated 1.40::
 
         All previously-proxied terminfo(5) capabilities are now provided directly by the capability
-        database in jinxed.  This class is unused by blessed but kept for API compatibility.
+        database in jinxed.  This class is unused by hamingjur but kept for API compatibility.
 
     This class mirrors the behavior of :class:`ParameterizingString`, except that instead of a
     capability name, receives a format string, and callable to filter the given positional ``*args``
@@ -186,7 +186,7 @@ class ParameterizingProxyString(str):
 
     For example::
 
-        >>> from blessed import Terminal
+        >>> from hamingjur import Terminal
         >>> term = Terminal('screen')
         >>> hpa = ParameterizingString(term.hpa, term.normal, 'hpa')
         >>> hpa(9)
@@ -242,7 +242,7 @@ class FormattingString(str):
     given (string) argument with the 2nd argument used by the class
     constructor::
 
-        >>> from blessed import Terminal
+        >>> from hamingjur import Terminal
         >>> term = Terminal()
         >>> style = FormattingString(term.bright_blue, term.normal)
         >>> print(repr(style))
@@ -299,7 +299,7 @@ class FormattingOtherString(str):
     This is used for the :meth:`~.Terminal.move_up`, ``down``, ``left``, and ``right()``
     family of functions::
 
-        >>> from blessed import Terminal
+        >>> from hamingjur import Terminal
         >>> term = Terminal()
         >>> move_right = FormattingOtherString(term.cuf1, term.cuf)
         >>> print(repr(move_right))

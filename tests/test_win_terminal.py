@@ -1,4 +1,4 @@
-"""Tests for Windows terminal support (blessed.win_terminal)."""
+"""Tests for Windows terminal support (hamingjur.win_terminal)."""
 # pylint: disable=possibly-used-before-assignment
 # std imports
 import io
@@ -15,12 +15,12 @@ pytestmark = pytest.mark.skipif(
     not IS_WINDOWS, reason="Windows-only tests")
 
 if IS_WINDOWS:
-    from blessed.win_terminal import (
+    from hamingjur.win_terminal import (
         _win32_mouse_to_sgr,
         _win32_resize_to_seq,
         POLL_KBHIT_PERIOD,
     )
-    from blessed.dec_modes import DecPrivateMode
+    from hamingjur.dec_modes import DecPrivateMode
     from jinxed import win32
     from .accessories import TestTerminal
 
@@ -137,7 +137,7 @@ def test_sgr_simultaneous_press_and_release():
 ])
 def test_resize_to_seq(lines, cols, expected):
     """Test DEC mode 2048 resize sequence generation."""
-    with mock.patch('blessed.win_terminal.win32.get_terminal_size') as m:
+    with mock.patch('hamingjur.win_terminal.win32.get_terminal_size') as m:
         m.return_value = mock.MagicMock(lines=lines, columns=cols)
         assert _win32_resize_to_seq(1) == expected
 
@@ -236,7 +236,7 @@ def test_drain_resize_event_buffered():
         console = mock.MagicMock()
         console.peek.side_effect = [_mock_resize_event(), None]
 
-        with mock.patch('blessed.win_terminal.win32.get_terminal_size') as m:
+        with mock.patch('hamingjur.win_terminal.win32.get_terminal_size') as m:
             m.return_value = mock.MagicMock(lines=24, columns=80)
             term._drain_native_events(console)
 
@@ -360,7 +360,7 @@ def test_native_fallback_sets_and_clears(ctx):
 
         with mock.patch.object(type(term), ctx.probe_method,
                                return_value=False, create=True), \
-                mock.patch('blessed.win_terminal.msvcrt.get_osfhandle',
+                mock.patch('hamingjur.win_terminal.msvcrt.get_osfhandle',
                            return_value=42), \
                 mock.patch.object(
                 win32, 'get_console_mode',
@@ -387,7 +387,7 @@ def test_mouse_enabled_preserves_disabled_quick_edit():
 
         with mock.patch.object(type(term), 'does_mouse',
                                return_value=False, create=True), \
-                mock.patch('blessed.win_terminal.msvcrt.get_osfhandle',
+                mock.patch('hamingjur.win_terminal.msvcrt.get_osfhandle',
                            return_value=42), \
                 mock.patch.object(
                 win32, 'get_console_mode',

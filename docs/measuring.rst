@@ -6,7 +6,7 @@ readout of the size of the window in character cells:
 
 .. code-block:: python
 
-    from blessed import Terminal
+    from hamingjur import Terminal
     term = Terminal()
 
     >>> term.height, term.width
@@ -17,7 +17,7 @@ window size in pixels when available:
 
 .. code-block:: python
 
-    from blessed import Terminal
+    from hamingjur import Terminal
     term = Terminal()
 
     >>> term.pixel_height, term.pixel_width
@@ -34,13 +34,13 @@ Length
 
 Any string **containing sequences** can be measured using :meth:`~.Terminal.length`.
 
-This means that blessed can measure, right-align, center, truncate, or word-wrap its own output!
+This means that Hamingjur can measure, right-align, center, truncate, or word-wrap its own output!
 Text containing colors and styling, hyperlinks, or text sizing protocol are measured for their
 visual width:
 
 .. code-block:: python
 
-    from blessed import Terminal
+    from hamingjur import Terminal
     term = Terminal()
 
     >>> print(term.length(term.bold_blue('123')))
@@ -60,7 +60,7 @@ visual width:
     >> print(term.length(phrase))
     2
 
-The length measurements of blessed very accurately matches most popular terminals, but not all. The
+The length measurements of Hamingjur very accurately matches most popular terminals, but not all. The
 python `wcwidth <https://wcwidth.readthedocs.io/en/latest/intro.html#discrepancies>`_ library
 provides support of complex emojis, CJK, flags, and complex languages, and support for unicode may
 vary by terminal, as discovered by the `results published by ucs-detect
@@ -73,7 +73,7 @@ sequences are ignored. Carriage return, ``'\r'`` is treated like ``term.move_x(0
 
 .. code-block:: python
 
-    from blessed import Terminal
+    from hamingjur import Terminal
     term = Terminal()
 
     >>> print(term.length('abc' + term.move_x(0) + 'xyz'))
@@ -99,14 +99,14 @@ Where :meth:`~Terminal.truncate` removes everything right of a single column,
 
 .. code-block:: python
 
-    from blessed import Terminal
+    from hamingjur import Terminal
     term = Terminal()
 
     print(term.clip('the quick brown fox', 4, 9))  # 'quick'
 
 .. code-block:: python
 
-    from blessed import Terminal
+    from hamingjur import Terminal
     term = Terminal()
 
     with term.location(y=term.height // 2):
@@ -117,7 +117,7 @@ In the following example, :meth:`~Terminal.wrap` word-wraps a short poem contain
 
 .. code-block:: python
 
-    from blessed import Terminal
+    from hamingjur import Terminal
     term = Terminal()
 
     poem = (term.bold_cyan('Plan difficult tasks'),
@@ -133,7 +133,7 @@ Terminal Corrections
 
 The rendered width of some characters depends on the terminal software, as discovered by the
 `ucs-detect <https://ucs-detect.readthedocs.io/results.html>`_ project.  At class-initialization,
-blessed identifies the terminal software by the ``TERM_PROGRAM`` environment variable, set by most
+Hamingjur identifies the terminal software by the ``TERM_PROGRAM`` environment variable, set by most
 modern terminal emulators, by a ``TERM`` value recognized by wcwidth, and otherwise by the
 `XTVERSION <https://vtdn.dev/docs/dcs/xtversion/>`_ query (``CSI > q``), then applies the matching
 wcwidth_ `correction tables <https://wcwidth.readthedocs.io/en/latest/intro.html#corrections>`_ to
@@ -147,7 +147,7 @@ the terminal and before any measurement:
 
 .. code-block:: python
 
-    from blessed import Terminal
+    from hamingjur import Terminal
     term = Terminal()
     term.detect_ambiguous_width()
     term.detect_term_program()
@@ -160,7 +160,7 @@ answers, such as when output is redirected, correction tables do not apply and a
 remains narrow.
 
 :meth:`~.Terminal.detect_term_program` applies the same detection and assigns
-:attr:`~.Terminal.term_program`, which could be changed after construction when integrating blessed
+:attr:`~.Terminal.term_program`, which could be changed after construction when integrating Hamingjur
 with remote streams like telnet or ssh, or any other circumstance where correction overrides are
 needed.
 
@@ -174,7 +174,7 @@ fractional font scaling, and alignment:
 
 .. code-block:: python
 
-    from blessed import Terminal
+    from hamingjur import Terminal
     term = Terminal()
 
     # determine if text sizing protocol is supported
@@ -213,7 +213,7 @@ fractional font scaling, and alignment:
 Detecting Resize
 ----------------
 
-The terminal can notify your application when the window size changes. Blessed provides a modern
+The terminal can notify your application when the window size changes. Hamingjur provides a modern
 cross-platform method using in-band resize notifications, with SIGWINCH_ as a fallback for older
 terminals. On Windows, native console ``WINDOW_BUFFER_SIZE_EVENT`` records are automatically
 converted to in-band resize sequences.
@@ -228,7 +228,7 @@ SIGWINCH_ signals on Unix systems.
 
     import signal
     import threading
-    from blessed import Terminal
+    from hamingjur import Terminal
 
     term = Terminal()
     _resize_pending = threading.Event()
@@ -266,7 +266,7 @@ notifications (DEC mode 2048):
 
 .. code-block:: python
 
-    from blessed import Terminal
+    from hamingjur import Terminal
 
     term = Terminal()
 

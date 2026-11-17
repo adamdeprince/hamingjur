@@ -15,8 +15,8 @@ import sys
 import timeit
 import threading
 
-from blessed import Terminal
-from blessed.keyboard import TERMINAL_QUERY_TIMEOUT_SECONDS
+from hamingjur import Terminal
+from hamingjur.keyboard import TERMINAL_QUERY_TIMEOUT_SECONDS
 
 
 @contextlib.contextmanager

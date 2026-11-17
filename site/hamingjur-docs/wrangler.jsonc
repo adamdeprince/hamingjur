@@ -1,0 +1,16 @@
+{
+  "name": "hamingjur-docs",
+  "main": "worker.mjs",
+  "account_id": "5a6f5857cedbb28b3ca462d22b1db2e4",
+  "compatibility_date": "2026-11-16",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "hamingjur.goblinreactor.com", "custom_domain": true }
+  ],
+  "vars": {
+    "SITE_URL": "https://hamingjur.goblinreactor.com"
+  },
+  "r2_buckets": [
+    { "binding": "DOCS", "bucket_name": "site-hamingjur-goblinreactor-com" }
+  ]
+}

@@ -2,7 +2,7 @@ Sequences
 =========
 
 Sometimes it is necessary to make sense of terminal sequences, and to distinguish them from plain
-text. Blessed provides methods to split, strip, and analyze strings containing escape sequences.
+text. Hamingjur provides methods to split, strip, and analyze strings containing escape sequences.
 
 Splitting Sequences
 -------------------

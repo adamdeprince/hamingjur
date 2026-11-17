@@ -1,6 +1,6 @@
 colorspace.py
 -------------
 
-.. automodule:: blessed.colorspace
+.. automodule:: hamingjur.colorspace
    :members:
    :private-members:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from blessed import Terminal
+from hamingjur import Terminal
 
 term = Terminal()
 print("Press 'q' or F10 to exit! Press F1 for help")

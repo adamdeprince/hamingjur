@@ -10,7 +10,7 @@ from functools import reduce
 from PIL import Image
 
 # local
-from blessed.colorspace import X11_COLORNAMES_TO_RGB
+from hamingjur.colorspace import X11_COLORNAMES_TO_RGB
 
 rgb_folder = os.path.abspath(
     os.path.join(os.path.dirname(__file__), os.pardir, 'docs', '_static', 'rgb'))

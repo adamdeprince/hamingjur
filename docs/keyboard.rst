@@ -6,7 +6,7 @@ one limitation: it waits for the Enter key. This makes it unsuitable for
 interactive applications that need to respond to individual keystrokes, arrow
 keys, or function keys.
 
-Blessed provides a solution with :meth:`~.Terminal.inkey`, which returns
+Hamingjur provides a solution with :meth:`~.Terminal.inkey`, which returns
 keystrokes *as they are pressed*, as :class:`~.Keystroke` objects.
 
 Overview
@@ -232,7 +232,7 @@ input, making it suitable for use with ``async``/``await``.
 .. code-block:: python
 
     import asyncio
-    from blessed import Terminal
+    from hamingjur import Terminal
 
     async def main():
         term = Terminal()

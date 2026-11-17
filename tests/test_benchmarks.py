@@ -1,6 +1,6 @@
-"""Performance benchmarks for blessed Sequence methods."""
+"""Performance benchmarks for hamingjur Sequence methods."""
 # local
-from blessed.keyboard import _read_until
+from hamingjur.keyboard import _read_until
 from .accessories import TestTerminal
 
 

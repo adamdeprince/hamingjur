@@ -10,8 +10,8 @@ Usage::
 import sys
 
 # local
-from blessed import Terminal
-from blessed._capabilities import XTGETTCAP_CAPABILITIES
+from hamingjur import Terminal
+from hamingjur._capabilities import XTGETTCAP_CAPABILITIES
 
 
 def main():

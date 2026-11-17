@@ -10,9 +10,9 @@ import time
 import signal
 
 # local
-from blessed import Terminal
-from blessed.dec_modes import DecModeResponse
-from blessed._capabilities import TermcapResponse
+from hamingjur import Terminal
+from hamingjur.dec_modes import DecModeResponse
+from hamingjur._capabilities import TermcapResponse
 from .conftest import IS_WINDOWS
 
 # 3rd party
@@ -79,8 +79,8 @@ def TestTerminal(is_a_tty=None, _xtgettcap_data=DEFAULT_TERMCAP_RESPONSE,
     if _xtgettcap_data is not NO_XTGETTCAP_DATA:
         kwargs['_xtgettcap_data'] = _xtgettcap_data
     if _xtgettcap_timeout is not None:
-        import blessed.terminal
-        blessed.terminal.TERMINAL_QUERY_TIMEOUT_SECONDS = _xtgettcap_timeout
+        import hamingjur.terminal
+        hamingjur.terminal.TERMINAL_QUERY_TIMEOUT_SECONDS = _xtgettcap_timeout
     with detection_overrides():
         term = Terminal(**kwargs)
     if is_a_tty is not None:
@@ -496,7 +496,7 @@ def assert_only_modifiers(ks, *modifiers):
     """
     # pylint: disable=missing-type-doc
     # Import KittyModifierBits to avoid magic numbers
-    from blessed.keyboard import KittyModifierBits
+    from hamingjur.keyboard import KittyModifierBits
 
     # Convert modifiers to a set for easy lookup
     modifier_set = {mod.lower() for mod in modifiers}

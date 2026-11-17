@@ -8,7 +8,7 @@ import colorsys
 import contextlib
 
 # local
-import blessed
+import hamingjur
 
 
 def scale_255(val): return int(round(val * 255))
@@ -65,7 +65,7 @@ def show_paused(term):
 
 
 def next_algo(algo, forward):
-    algos = tuple(sorted(blessed.color.COLOR_DISTANCE_ALGORITHMS))
+    algos = tuple(sorted(hamingjur.color.COLOR_DISTANCE_ALGORITHMS))
     next_index = algos.index(algo) + (1 if forward else -1)
     if next_index == len(algos):
         next_index = 0
@@ -130,4 +130,4 @@ def main(term):
 
 
 if __name__ == "__main__":
-    exit(main(blessed.Terminal()))
+    exit(main(hamingjur.Terminal()))

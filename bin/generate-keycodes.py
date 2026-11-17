@@ -3,7 +3,7 @@
 import os
 
 # local
-from blessed.keyboard import DEFAULT_SEQUENCE_MIXIN, CURSES_KEYCODE_OVERRIDE_MIXIN
+from hamingjur.keyboard import DEFAULT_SEQUENCE_MIXIN, CURSES_KEYCODE_OVERRIDE_MIXIN
 
 
 def is_override(key_attr_name, code):
@@ -12,7 +12,7 @@ def is_override(key_attr_name, code):
 
 
 def main():
-    from blessed import Terminal
+    from hamingjur import Terminal
     term = Terminal()
     csv_header = """
 .. csv-table:: All Terminal class attribute Keyboard codes, by name

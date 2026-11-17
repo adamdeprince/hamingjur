@@ -1,0 +1,5 @@
+recursive-include docs *.rst *.py *.html *.css *.svg *.png
+recursive-include tests *.py
+recursive-include bin *.py
+include *.rst tox.ini
+prune docs/_build

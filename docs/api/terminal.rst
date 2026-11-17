@@ -1,7 +1,7 @@
 terminal.py
 -----------
 
-.. automodule:: blessed.terminal
+.. automodule:: hamingjur.terminal
    :members:
    :undoc-members:
    :special-members: __getattr__

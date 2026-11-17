@@ -6,7 +6,7 @@ import pytest
 
 from .accessories import (TestTerminal, assert_modifiers,
                           assert_modifiers_value, assert_only_modifiers)
-from blessed.keyboard import Keystroke, LegacyCSIKeyEvent, ModifyOtherKeysEvent, resolve_sequence
+from hamingjur.keyboard import Keystroke, LegacyCSIKeyEvent, ModifyOtherKeysEvent, resolve_sequence
 
 
 if platform.system() != 'Windows':

@@ -13,7 +13,7 @@ import unicodedata
 from wcwidth import iter_graphemes
 
 # local
-from blessed import Terminal
+from hamingjur import Terminal
 
 # Unicode Default_Ignorable_Code_Point ranges, of DerivedCoreProperties.txt.
 DEFAULT_IGNORABLE_RANGES = (

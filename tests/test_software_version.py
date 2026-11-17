@@ -16,6 +16,7 @@ Text format varies by terminal:
   - WezTerm 20220207-230252-0826fb06
   - X.Org 7.7.0(370)
 """
+# std imports
 # std
 import io
 import time
@@ -25,16 +26,14 @@ from unittest import mock
 import pytest
 
 # local
-from .conftest import TEST_KEYBOARD, IS_WINDOWS
-from .accessories import (
-    TestTerminal,
-    pty_test,
-)
-from blessed.keyboard import (SoftwareVersion,
-                              resolve_sequence,
-                              get_keyboard_codes,
-                              get_keyboard_sequences)
-from blessed.terminal import Terminal
+from hamingjur.keyboard import (SoftwareVersion,
+                               resolve_sequence,
+                               get_keyboard_codes,
+                               get_keyboard_sequences)
+from hamingjur.terminal import Terminal
+# local
+from .conftest import IS_WINDOWS, TEST_KEYBOARD
+from .accessories import TestTerminal, pty_test
 
 pytestmark = pytest.mark.skipif(
     not TEST_KEYBOARD or IS_WINDOWS,
@@ -218,6 +217,7 @@ def test_get_software_version_not_a_tty():
 def test_get_software_version_env_fallback():
     """Test get_software_version() uses TERM_PROGRAM env vars, without inquiry."""
     def child(term):
+        # std imports
         import os
         os.environ['TERM_PROGRAM'] = 'iTerm.app'
         os.environ['TERM_PROGRAM_VERSION'] = '3.5.0'
@@ -240,6 +240,7 @@ def test_get_software_version_env_fallback():
 def test_get_software_version_env_fallback_no_version():
     """Test env fallback works when TERM_PROGRAM_VERSION is unset."""
     def child(term):
+        # std imports
         import os
         os.environ['TERM_PROGRAM'] = 'Apple_Terminal'
         try:
@@ -260,6 +261,7 @@ def test_get_software_version_env_fallback_no_version():
 def test_get_software_version_env_fallback_version_only():
     """An empty TERM_PROGRAM is treated as unset, so a query is still made."""
     def child(term):
+        # std imports
         import os
         os.environ['TERM_PROGRAM_VERSION'] = '1.2.3'
         try:

@@ -1,228 +1,87 @@
-| |pypi_downloads| |codecov| |windows| |linux| |mac| |bsd|
+Hamingjur
+=========
 
-Introduction
-============
+Hamingjur is a pure Python terminal library forked from
+`Blessed <https://github.com/jquast/blessed>`_. It combines portable terminal
+text and keyboard APIs with Kitty and Silkie graphics, tablet and touch input,
+gestures, terminal-local ink, typography, HDR, clipboard, notifications, and
+presentation timing.
 
-Blessed is an easy, practical *library* for making *terminal* apps, by providing an elegant,
-well-documented interface to Colors_, Keyboard_ input, and screen position and Location_
-capabilities.
+Install with ``pip install hamingjur``; use ``pip install 'hamingjur[images]'``
+for adaptive PIL image drawing. To install a checkout, use ``pip install .``.
+All code lives in the
+``hamingjur`` namespace; the package neither provides nor imports ``blessed``.
+Hamingjur and upstream Blessed can be installed together.
 
 .. code-block:: python
 
-    from blessed import Terminal
+    from hamingjur import Terminal
 
     term = Terminal()
+    print(term.bold('Hello from Hamingjur'))
+    with term.cbreak():
+        cell = term.get_cell_size()
+        if cell is not None:
+            print(f'Each cell is {cell.width} × {cell.height} physical pixels')
 
-    print(term.home + term.clear + term.move_y(term.height // 2))
-    print(term.black_on_darkkhaki(term.center('press any key to continue.')))
+First-class terminal features
+-----------------------------
 
-    with term.cbreak(), term.hidden_cursor():
-        inp = term.inkey()
+* Text, colors, cursor movement, full-screen applications, Unicode layout,
+  line editing, keyboard, mouse, focus, paste, and resize events.
+* Raster and vector images, packed grayscale and RGB565, animations, image placement,
+  styled vector text, font resources, HDR, wide gamut color, and image-backed pointers.
+* Pen pressure and tilt, simultaneous contacts, tablet pads, gestures, scrolling,
+  haptics, and terminal-local ink through ``term.tablet``, ``term.ink``, and related APIs.
+* Window and cell geometry, size requests, display information, latency control,
+  and frame presentation feedback.
+* Clipboard formats, drag and drop, file-transfer packets, notifications,
+  shell integration, and standard terminal control sequences.
+* Stereo depth and fractional vertical phase for text and graphics, notification
+  return routes, and explicit SSH-agent packet transport.
 
-    print(term.move_down(2) + 'You pressed ' + term.bold(repr(inp)))
+The `feature map <https://github.com/adamdeprince/hamingjur/blob/master/docs/features.rst>`_
+describes the APIs, terminal requirements, and which operations use lower-level
+protocol encoders. Terminal support and user permissions determine which requests
+are accepted; a sent request does not prove that a terminal acted on it.
 
-.. figure:: https://dxtz6bzwq9sxx.cloudfront.net/demo_basic_intro.gif
-   :alt: Animation of running the code example
+Open ``docs/hamingjur.html`` for a standalone project guide, working examples,
+and a searchable API reference generated from the Python source. It works
+offline. Rebuild it from the checkout with::
 
-It's meant to be *fun* and *easy*, to do basic terminal graphics and styling with Python using
-*blessed*. Terminal_ is the only class you need to import and the only object you should need for
-Terminal capabilities.
+    python site/hamingjur-docs/build.py --export docs/hamingjur.html
 
-Whether you want to improve CLI apps with colors, or make fullscreen applications or games,
-*blessed* should help get you started quickly. Your users will love it because it works on Windows,
-Mac, and Linux, and you will love it because it has plenty of documentation and examples!
+Tablet drawing example
+----------------------
 
-Full documentation at https://blessed.readthedocs.io/en/latest/
+Run inside Silkie, selecting one required mode::
 
-Examples
---------
+    python bin/tablet_canvas.py --mode tiles
+    python bin/tablet_canvas.py --mode vectors
+    python bin/tablet_canvas.py --mode ink
 
-.. figure:: https://dxtz6bzwq9sxx.cloudfront.net/blessed_demo_intro.gif
-   :alt: animations of x11-colorpicker.py, bounce.py, worms.py, and plasma.py
+``tiles`` paints into cell-sized raster images in Python. ``vectors`` sends
+vector updates from Python. ``ink`` lets Silkie draw eligible pen strokes
+locally, with Python fallback for other contacts. All three use a pen-shaped
+pointer. Press ``q`` or Escape to exit.
 
-   x11-colorpicker.py_, bounce.py_, worms.py_, and plasma.py_ demonstration
-   programs from our repository.
+The library uses Python and its standard library with the existing ``wcwidth``
+and ``jinxed`` dependencies. Pillow is optional and used by the high-level image
+planner; byte encoders and tablet drawing do not need it. Native graphics bindings
+and kitten subprocesses are not required.
 
-.. figure:: https://dxtz6bzwq9sxx.cloudfront.net/demo_cellestial.gif
-   :alt: colored and dimensional cellular automata in scrolling animation
+Project and attribution
+-----------------------
 
-   cellestial.py_ demonstration program from our repository.
+Homepage and API documentation: https://hamingjur.goblinreactor.com
 
-Exemplary 3rd-party examples which use *blessed*,
+Source and issues: https://github.com/adamdeprince/hamingjur
 
-.. figure:: https://dxtz6bzwq9sxx.cloudfront.net/demo_3rdparty_voltron.png
-   :alt: Screenshot of 'Voltron' (By the author of Voltron, from their README).
+Hamingjur is an independent fork maintained by Adam DePrince, not a release of
+Blessed. Fork contributions are copyright (c) 2026 Adam DePrince.
 
-   Voltron_ is an extensible debugger UI toolkit written in Python
-
-.. figure:: https://dxtz6bzwq9sxx.cloudfront.net/demo_3rdparty_cursewords.gif
-   :alt: Animation of 'cursewords' (By the author of cursewords, from their README).
-
-   cursewords_ is "graphical" command line program for solving crossword puzzles in the terminal.
-
-.. figure:: https://dxtz6bzwq9sxx.cloudfront.net/demo_3rdparty_dashing.gif
-   :alt: Animations from 'Dashing' (By the author of Dashing, from their README)
-
-   Dashing_ is a library to quickly create terminal-based dashboards.
-
-.. figure:: https://dxtz6bzwq9sxx.cloudfront.net/demo_3rdparty_enlighten.gif
-   :alt: Animations from 'Enlighten' (By the author of Enlighten, from their README)
-
-   Enlighten_ is a console progress bar library that allows simultaneous output without redirection.
-
-Requirements
-------------
-
-*Blessed* works with Windows, Mac, Linux, and BSD's, on Python 3.9+.
-
-Brief Overview
---------------
-
-*Blessed* is more than just a Python wrapper around curses_:
-
-* Styles_, Colors_, and maybe a little positioning without necessarily clearing the whole screen
-  first.
-* Works great with Python's new f-strings_ or any other kind of string formatting.
-* Provides up-to-the-moment Location_ and terminal height and width, so you can respond to terminal
-  size changes.
-* Avoids making a mess if the output gets piped to a non-terminal, you can output sequences to any
-  file-like object such as *StringIO*, files, pipes or sockets.
-* Uses `terminfo(5)`_ so it works with any terminal type and capability: No more C-like calls to
-  tigetstr_ and tparm_.
-* Non-obtrusive calls to only the capabilities database ensures that you are free to mix and match
-  with calls to any other curses application code or library you like.
-* Provides context managers `Terminal.fullscreen()`_ and `Terminal.hidden_cursor()`_ to safely
-  express terminal modes, curses development will no longer fudge up your shell.
-* Act intelligently when somebody redirects your output to a file, omitting all of the special
-  sequences colors, but still containing all of the text.
-
-*Blessed* is a fork of `blessings <https://github.com/erikrose/blessings>`_, which does all of
-the same above with the same API, as well as following **enhancements**:
-
-* Windows support, new since Dec. 2019!
-* Dead-simple keyboard handling: safely decoding unicode input in your system's preferred locale and
-  supports application/arrow keys.
-* 24-bit color support, using `Terminal.color_rgb()`_ and `Terminal.on_color_rgb()`_ and all X11
-  Colors_ by name, and not by number.
-* Determine cursor location using `Terminal.get_location()`_, enter key-at-a-time input mode using
-  `Terminal.cbreak()`_ or `Terminal.raw()`_ context managers, and read timed key presses using
-  `Terminal.inkey()`_.
-* Allows the *printable length* of strings that contain sequences to be determined by
-  `Terminal.length()`_, supporting additional methods `Terminal.wrap()`_ and `Terminal.center()`_,
-  terminal-aware variants of the built-in function `textwrap.wrap()`_ and method `str.center()`_,
-  respectively.
-* Allows sequences to be removed from strings that contain them, using `Terminal.strip_seqs()`_ or
-  sequences and whitespace using `Terminal.strip()`_.
-* Per-character text sizing using the `kitty text sizing protocol`_, via `Terminal.text_sized()`_
-  and `Terminal.does_text_sizing()`_.
-
-Before And After
-----------------
-
-With the built-in curses_ module, this is how you would typically
-print some underlined text at the bottom of the screen:
-
-.. code-block:: python
-
-    from curses import tigetstr, setupterm, tparm
-    from fcntl import ioctl
-    from os import isatty
-    import struct
-    import sys
-    from termios import TIOCGWINSZ
-
-    # If we want to tolerate having our output piped to other commands or
-    # files without crashing, we need to do all this branching:
-    if hasattr(sys.stdout, 'fileno') and isatty(sys.stdout.fileno()):
-        setupterm()
-        sc = tigetstr('sc')
-        cup = tigetstr('cup')
-        rc = tigetstr('rc')
-        underline = tigetstr('smul')
-        normal = tigetstr('sgr0')
-    else:
-        sc = cup = rc = underline = normal = ''
-
-    # Save cursor position.
-    print(sc)
-
-    if cup:
-        # tigetnum('lines') doesn't always update promptly, hence this:
-        height = struct.unpack('hhhh', ioctl(0, TIOCGWINSZ, '\000' * 8))[0]
-
-        # Move cursor to bottom.
-        print(tparm(cup, height - 1, 0))
-
-    print(f'This is {underline}underlined{normal}!')
-
-    # Restore cursor position.
-    print(rc)
-
-The same program with *Blessed* is simply:
-
-.. code-block:: python
-
-    from blessed import Terminal
-
-    term = Terminal()
-    with term.location(0, term.height - 1):
-        print('This is ' + term.underline('underlined') + '!', end='')
-
-.. _curses: https://docs.python.org/3/library/curses.html
-.. _tigetstr: http://man.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man3/tigetstr.3
-.. _tparm: http://man.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man3/tparm.3
-.. _`terminfo(5)`: https://invisible-island.net/ncurses/man/terminfo.5.html
-.. _str.center(): https://docs.python.org/3/library/stdtypes.html#str.center
-.. _textwrap.wrap(): https://docs.python.org/3/library/textwrap.html#textwrap.wrap
-.. _Terminal: https://blessed.readthedocs.io/en/stable/terminal.html
-.. _`Terminal.fullscreen()`: https://blessed.readthedocs.io/en/latest/api/terminal.html#blessed.terminal.Terminal.fullscreen
-.. _`Terminal.get_location()`: https://blessed.readthedocs.io/en/latest/location.html#finding-the-cursor
-.. _`Terminal.color_rgb()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.color_rgb
-.. _`Terminal.hidden_cursor()`: https://blessed.readthedocs.io/en/latest/api/terminal.html#blessed.terminal.Terminal.hidden_cursor
-.. _`Terminal.on_color_rgb()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.on_color_rgb
-.. _`Terminal.length()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.length
-.. _`Terminal.strip()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.strip
-.. _`Terminal.rstrip()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.rstrip
-.. _`Terminal.lstrip()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.lstrip
-.. _`Terminal.strip_seqs()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.strip_seqs
-.. _`Terminal.wrap()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.wrap
-.. _`Terminal.center()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.center
-.. _`Terminal.rjust()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.rjust
-.. _`Terminal.ljust()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.ljust
-.. _`Terminal.cbreak()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.cbreak
-.. _`Terminal.raw()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.raw
-.. _`Terminal.inkey()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.inkey
-.. _`Terminal.text_sized()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.text_sized
-.. _`Terminal.does_text_sizing()`: https://blessed.readthedocs.io/en/stable/api/terminal.html#blessed.terminal.Terminal.does_text_sizing
-.. _Colors: https://blessed.readthedocs.io/en/stable/colors.html
-.. _Styles: https://blessed.readthedocs.io/en/stable/terminal.html#styles
-.. _Location: https://blessed.readthedocs.io/en/stable/location.html
-.. _Keyboard: https://blessed.readthedocs.io/en/stable/keyboard.html
-.. _Examples: https://blessed.readthedocs.io/en/stable/examples.html
-.. _x11-colorpicker.py: https://blessed.readthedocs.io/en/stable/examples.html#x11-colorpicker-py
-.. _bounce.py: https://blessed.readthedocs.io/en/stable/examples.html#bounce-py
-.. _worms.py: https://blessed.readthedocs.io/en/stable/examples.html#worms-py
-.. _plasma.py: https://blessed.readthedocs.io/en/stable/examples.html#plasma-py
-.. _cellestial.py: https://blessed.readthedocs.io/en/latest/examples.html#cellestial-py
-.. _Voltron: https://github.com/snare/voltron
-.. _cursewords: https://github.com/thisisparker/cursewords
-.. _GitHeat: https://github.com/AmmsA/Githeat
-.. _Dashing: https://github.com/FedericoCeratto/dashing
-.. _Enlighten: https://github.com/Rockhopper-Technologies/enlighten
-.. _macht: https://github.com/rolfmorel/macht
-.. _f-strings: https://docs.python.org/3/reference/lexical_analysis.html#f-strings
-.. _kitty text sizing protocol: https://sw.kovidgoyal.net/kitty/text-sizing-protocol/
-.. |pypi_downloads| image:: https://img.shields.io/pypi/dm/blessed.svg?logo=pypi
-    :alt: Downloads
-    :target: https://pypi.org/project/blessed/
-.. |codecov| image:: https://codecov.io/gh/jquast/blessed/branch/master/graph/badge.svg
-    :alt: codecov.io Code Coverage
-    :target: https://codecov.io/gh/jquast/blessed/
-.. |linux| image:: https://img.shields.io/badge/Linux-yes-success?logo=linux
-    :alt: Linux supported
-.. |windows| image:: https://img.shields.io/badge/Windows-yes-success?logo=windows
-    :alt: Windows supported
-.. |mac| image:: https://img.shields.io/badge/MacOS-yes-success?logo=apple
-    :alt: MacOS supported
-.. |bsd| image:: https://img.shields.io/badge/BSD-yes-success?logo=freebsd
-    :alt: BSD supported
+Hamingjur is distributed under the MIT license in ``LICENSE``. It retains the
+inherited copyright notices: copyright (c) 2014 Jeff Quast and copyright (c) 2011
+Erik Rose. Upstream contributors include Avram Lubkin.
+Blessed was itself forked from `blessings <https://github.com/erikrose/blessings>`_.
+The historical changelog records the upstream work on which this fork is based.

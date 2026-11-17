@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Demonstrate the Kitty Text Sizing Protocol (OSC 66) with blessed."""
+"""Demonstrate the Kitty Text Sizing Protocol (OSC 66) with hamingjur."""
 
 # std imports
 import math
@@ -8,7 +8,7 @@ import math
 from wcwidth import TextSizing, TextSizingParams
 
 # local
-from blessed import Terminal
+from hamingjur import Terminal
 
 FRACTIONS = [(n, d) for d in range(1, 16) for n in range(0, d)]
 

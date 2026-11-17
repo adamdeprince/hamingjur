@@ -1,7 +1,7 @@
 keyboard.py
 -----------
 
-.. automodule:: blessed.keyboard
+.. automodule:: hamingjur.keyboard
    :members:
    :undoc-members:
    :private-members:

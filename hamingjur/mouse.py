@@ -55,6 +55,11 @@ class MouseEvent:  # pylint: disable=too-many-instance-attributes
         self.is_motion = is_motion
         self.is_wheel = is_wheel
 
+    @property
+    def is_leave(self) -> bool:
+        """Kitty SGR pixel mouse-leave event; coordinates and buttons must be ignored."""
+        return bool(self.button_value & 256)
+
     def _get_base_button_name(self) -> str:
         """
         Get base button name without modifiers or state.
@@ -91,6 +96,8 @@ class MouseEvent:  # pylint: disable=too-many-instance-attributes
         :rtype: str
         :returns: Button name with modifiers, button type, and motion/release state.
         """
+        if self.is_leave:
+            return 'LEAVE'
         button_name = ''
 
         # Add modifiers in order: ctrl, shift, meta
@@ -154,7 +161,7 @@ class MouseEvent:  # pylint: disable=too-many-instance-attributes
         Applications must interpret x,y coordinates based on which mode was enabled.
 
         The protocol sends 1-indexed coordinates (top-left is 1,1), but we convert
-        to 0-indexed (top-left is 0,0) to match blessed's terminal movement functions.
+        to 0-indexed (top-left is 0,0) to match hamingjur's terminal movement functions.
 
         :param Match match: Regex match object with groups 'b', 'x', 'y', 'type'.
         :rtype: MouseEvent
@@ -198,7 +205,7 @@ class MouseEvent:  # pylint: disable=too-many-instance-attributes
         Parse legacy mouse event (X10/1000/1002/1003) from regex match.
 
         The protocol sends 1-indexed coordinates (top-left is 1,1), but we convert to 0-indexed
-        (top-left is 0,0) to match blessed's terminal movement functions.
+        (top-left is 0,0) to match hamingjur's terminal movement functions.
 
         Each coordinate is transmitted as a single byte of ``value + 32``, so no position beyond
         223 can be expressed.  Windows Terminal and the console host (``conhost.exe``) share a VT

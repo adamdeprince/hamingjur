@@ -12,7 +12,7 @@ $ python tprint.py bold A rather bold statement.
 import argparse
 
 # local
-from blessed import Terminal
+from hamingjur import Terminal
 
 
 def parse_args():

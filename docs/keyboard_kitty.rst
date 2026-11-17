@@ -86,7 +86,7 @@ Example use case - detect only initial key presses and ignore repeats:
 
 .. code-block:: python
 
-    from blessed import Terminal
+    from hamingjur import Terminal
 
     term = Terminal()
 
@@ -201,7 +201,7 @@ QWERTY, Dvorak, AZERTY, or many non-US layouts.
 
 The ``report_alternates`` flag solves this by requesting the terminal to
 also report the *base layout key* -- the key identity independent of the
-active layout. When ``report_alternates=True``, blessed uses the base
+active layout. When ``report_alternates=True``, Hamingjur uses the base
 layout key for name synthesis, so a shortcut like ``KEY_CTRL_Z`` works
 regardless of whether the user's layout places ``Z`` in the QWERTY
 position or elsewhere.
@@ -224,7 +224,7 @@ You can optionally check for protocol support:
 
 .. code-block:: python
 
-    from blessed import Terminal
+    from hamingjur import Terminal
 
     term = Terminal()
     state = term.get_kitty_keyboard_state()

@@ -22,8 +22,8 @@ Actions:
 import collections
 
 # local
-from blessed import Terminal
-from blessed.line_editor import LineEditor
+from hamingjur import Terminal
+from hamingjur.line_editor import LineEditor
 
 
 def echo(text):
@@ -56,7 +56,7 @@ Cursor = collections.namedtuple('Cursor', ('y', 'x', 'term'))
 
 
 def readline(term, width=20):
-    """Read a line of input using :class:`~blessed.line_editor.LineEditor`."""
+    """Read a line of input using :class:`~hamingjur.line_editor.LineEditor`."""
     col = term.get_location()[1]
     editor = LineEditor(limit=width, max_width=width)
     while True:

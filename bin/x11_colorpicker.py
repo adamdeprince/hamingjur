@@ -5,8 +5,8 @@ import colorsys
 from functools import reduce
 
 # local
-import blessed
-from blessed.colorspace import X11_COLORNAMES_TO_RGB
+import hamingjur
+from hamingjur.colorspace import X11_COLORNAMES_TO_RGB
 
 
 def sort_colors():
@@ -63,7 +63,7 @@ def render(term, idx):
 
 
 def next_algo(algo, forward):
-    algos = tuple(sorted(blessed.color.COLOR_DISTANCE_ALGORITHMS))
+    algos = tuple(sorted(hamingjur.color.COLOR_DISTANCE_ALGORITHMS))
     next_index = algos.index(algo) + (1 if forward else -1)
     if next_index == len(algos):
         next_index = 0
@@ -79,7 +79,7 @@ def next_color(color, forward):
 
 
 def main():
-    term = blessed.Terminal()
+    term = hamingjur.Terminal()
     with term.cbreak(), term.hidden_cursor(), term.fullscreen():
         idx = len(HSV_SORTED_COLORS) // 2
         dirty = True

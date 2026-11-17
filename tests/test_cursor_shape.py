@@ -7,7 +7,7 @@ from io import StringIO
 import pytest
 
 # local
-from blessed.cursor_shape import CursorShape
+from hamingjur.cursor_shape import CursorShape
 from .accessories import TestTerminal
 
 
@@ -151,7 +151,7 @@ def test_cursor_shape_no_styling(any_term):
 
 def test_cursor_shape_accessible_as_class_attr():
     """CursorShape is accessible as Terminal.CursorShape."""
-    from blessed import Terminal
+    from hamingjur import Terminal
     assert hasattr(Terminal, 'CursorShape')
     assert Terminal.CursorShape is CursorShape
 

@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 
 # local imports
-from blessed import Terminal
+from hamingjur import Terminal
 
 
 def embolden(phrase):

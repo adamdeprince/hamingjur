@@ -1,7 +1,7 @@
 formatters.py
 -------------
 
-.. automodule:: blessed.formatters
+.. automodule:: hamingjur.formatters
    :members:
    :undoc-members:
    :private-members:

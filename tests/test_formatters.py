@@ -42,7 +42,7 @@ def tparm_calls(monkeypatch):
 def test_parameterizing_string_args_unspecified(monkeypatch):
     """Test default args of formatters.ParameterizingString."""
     # local
-    from blessed.formatters import FormattingString, ParameterizingString
+    from hamingjur.formatters import FormattingString, ParameterizingString
 
     # first argument to tparm() is the sequence name, returned as-is;
     # subsequent arguments are usually Integers.
@@ -72,7 +72,7 @@ def test_parameterizing_string_args_unspecified(monkeypatch):
 def test_parameterizing_string_args(monkeypatch):
     """Test basic formatters.ParameterizingString."""
     # local
-    from blessed.formatters import FormattingString, ParameterizingString
+    from hamingjur.formatters import FormattingString, ParameterizingString
 
     # first argument to tparm() is the sequence name, returned as-is;
     # subsequent arguments are usually Integers.
@@ -103,7 +103,7 @@ def test_parameterizing_string_memoized(tparm_calls):
     """Test formatters.ParameterizingString memoizes tparm() results."""
     # pylint: disable=redefined-outer-name
     # local
-    from blessed.formatters import ParameterizingString
+    from hamingjur.formatters import ParameterizingString
 
     pstr = ParameterizingString('cap', 'norm', 'seq-name')
 
@@ -139,7 +139,7 @@ def test_parameterizing_string_static_vars_not_memoized(tparm_calls):
     """Test capabilities using terminfo static variables are never memoized."""
     # pylint: disable=redefined-outer-name
     # local
-    from blessed.formatters import ParameterizingString
+    from hamingjur.formatters import ParameterizingString
 
     # '%PA' pops the stack into terminfo static variable 'A', pushed back by '%gA'.  Unlike
     # parameters, such variables outlive the call that set them, so a capability using them
@@ -155,7 +155,7 @@ def test_parameterizing_string_static_vars_not_memoized(tparm_calls):
 def test_parameterizing_string_unhashable_arg():
     """Test formatters.ParameterizingString with an argument that cannot be cached."""
     # local
-    from blessed.formatters import ParameterizingString
+    from hamingjur.formatters import ParameterizingString
 
     pstr = ParameterizingString('\x1b[%i%p1%d;%p2%dH', 'norm', 'cup')
 
@@ -168,7 +168,7 @@ def test_parameterizing_string_unhashable_arg():
 def test_parameterizing_string_type_error(monkeypatch):
     """Test formatters.ParameterizingString raising TypeError."""
     # local
-    from blessed.formatters import ParameterizingString
+    from hamingjur.formatters import ParameterizingString
 
     calls = []
 
@@ -205,7 +205,7 @@ def test_parameterizing_string_type_error(monkeypatch):
 def test_formattingstring(monkeypatch):
     """Test simple __call__ behavior of formatters.FormattingString."""
     # local
-    from blessed.formatters import FormattingString
+    from hamingjur.formatters import FormattingString
 
     # given, with arg
     pstr = FormattingString('attr', 'norm')
@@ -223,7 +223,7 @@ def test_formattingstring(monkeypatch):
 def test_nested_formattingstring(monkeypatch):
     """Test nested __call__ behavior of formatters.FormattingString."""
     # local
-    from blessed.formatters import FormattingString
+    from hamingjur.formatters import FormattingString
 
     # given, with arg
     pstr = FormattingString('a1-', 'n-')
@@ -236,7 +236,7 @@ def test_nested_formattingstring(monkeypatch):
 def test_nested_formattingstring_type_error(monkeypatch):
     """Test formatters.FormattingString raising TypeError."""
     # local
-    from blessed.formatters import FormattingString
+    from hamingjur.formatters import FormattingString
 
     # given,
     pstr = FormattingString('a-', 'n-')
@@ -255,7 +255,7 @@ def test_nested_formattingstring_type_error(monkeypatch):
 def test_nullcallablestring(monkeypatch):
     """Test formatters.NullCallableString."""
     # local
-    from blessed.formatters import NullCallableString
+    from hamingjur.formatters import NullCallableString
 
     # given, with arg
     pstr = NullCallableString()
@@ -272,7 +272,7 @@ def test_nullcallablestring(monkeypatch):
 def test_split_compound():
     """Test formatters.split_compound."""
     # local
-    from blessed.formatters import split_compound
+    from hamingjur.formatters import split_compound
 
     assert split_compound('') == ['']
     assert split_compound('a_b_c') == ['a', 'b', 'c']
@@ -284,7 +284,7 @@ def test_split_compound():
 def test_resolve_capability(monkeypatch):
     """Test formatters.resolve_capability and term sugaring."""
     # local
-    from blessed.formatters import resolve_capability
+    from hamingjur.formatters import resolve_capability
 
     # given, always returns a b'seq'
     def tigetstr(attr):
@@ -324,7 +324,7 @@ def test_resolve_capability(monkeypatch):
 def test_resolve_capability_warns_unknown():
     """Test resolve_capability warns on unknown capability names."""
     import warnings
-    from blessed.formatters import resolve_capability, _KNOWN_CAPABILITY_NAMES
+    from hamingjur.formatters import resolve_capability, _KNOWN_CAPABILITY_NAMES
 
     term = mock.Mock()
     term.does_styling = True
@@ -353,7 +353,7 @@ def test_resolve_capability_warns_unknown():
 def test_resolve_capability_no_warn_on_absent_known():
     """Test no warning when a known cap is absent from this terminal."""
     import warnings
-    from blessed.formatters import resolve_capability, _KNOWN_CAPABILITY_NAMES
+    from hamingjur.formatters import resolve_capability, _KNOWN_CAPABILITY_NAMES
 
     term = mock.Mock()
     term.does_styling = True
@@ -373,9 +373,9 @@ def test_resolve_capability_no_warn_on_absent_known():
 def test_resolve_capability_nowarn_env(monkeypatch):
     """Test BLESSED_NOWARN_UNKNOWN_CAPS suppresses the warning."""
     import warnings
-    import blessed.formatters
-    resolve_capability = blessed.formatters.resolve_capability
-    monkeypatch.setattr(blessed.formatters, '_NOWARN_UNKNOWN_CAPS', True)
+    import hamingjur.formatters
+    resolve_capability = hamingjur.formatters.resolve_capability
+    monkeypatch.setattr(hamingjur.formatters, '_NOWARN_UNKNOWN_CAPS', True)
 
     term = mock.Mock()
     term.does_styling = True
@@ -394,7 +394,7 @@ def test_resolve_capability_nowarn_env(monkeypatch):
 def test_resolve_capability_warns_unknown_sugar():
     """Test warning names the resolved capname, not the sugar key."""
     import warnings
-    from blessed.formatters import resolve_capability, _KNOWN_CAPABILITY_NAMES
+    from hamingjur.formatters import resolve_capability, _KNOWN_CAPABILITY_NAMES
 
     term = mock.Mock()
     term.does_styling = True
@@ -414,7 +414,7 @@ def test_resolve_capability_warns_unknown_sugar():
 def test_resolve_capability_empty_bytes_returns_empty():
     """Test jinxed EMPTY_CAPS returning b'' produces '' with no warning."""
     import warnings
-    from blessed.formatters import resolve_capability
+    from hamingjur.formatters import resolve_capability
 
     term = TestTerminal(force_styling=True)
 
@@ -427,7 +427,7 @@ def test_resolve_capability_empty_bytes_returns_empty():
 
 def test_resolve_capability_strikethrough_overline():
     """Test strikethrough and overline resolve to expected SGR sequences."""
-    from blessed.formatters import resolve_capability
+    from hamingjur.formatters import resolve_capability
     term_xterm = TestTerminal(kind='xterm-256color', force_styling=True)
     assert resolve_capability(term_xterm, 'strikethrough') == '\x1b[9m'
     term_wez = TestTerminal(kind='wezterm', force_styling=True)
@@ -437,7 +437,7 @@ def test_resolve_capability_strikethrough_overline():
 def test_resolve_color(monkeypatch):
     """Test formatters.resolve_color."""
     # local
-    from blessed.formatters import FormattingString, NullCallableString, resolve_color
+    from hamingjur.formatters import FormattingString, NullCallableString, resolve_color
 
     def color_cap(digit):
         return f'seq-{digit}'
@@ -482,17 +482,17 @@ def test_resolve_color(monkeypatch):
 def test_resolve_attribute_as_color(monkeypatch):
     """Test simple resolve_attribte() given color name."""
     # local
-    import blessed
-    from blessed.formatters import resolve_attribute
+    import hamingjur
+    from hamingjur.formatters import resolve_attribute
 
     def resolve_color(term, digit):
         return f'seq-{digit}'
 
     COLORS = {'COLORX', 'COLORY'}
     COMPOUNDABLES = {'JOINT', 'COMPOUND'}
-    monkeypatch.setattr(blessed.formatters, 'resolve_color', resolve_color)
-    monkeypatch.setattr(blessed.formatters, 'COLORS', COLORS)
-    monkeypatch.setattr(blessed.formatters, 'COMPOUNDABLES', COMPOUNDABLES)
+    monkeypatch.setattr(hamingjur.formatters, 'resolve_color', resolve_color)
+    monkeypatch.setattr(hamingjur.formatters, 'COLORS', COLORS)
+    monkeypatch.setattr(hamingjur.formatters, 'COMPOUNDABLES', COMPOUNDABLES)
     term = mock.Mock()
     assert resolve_attribute(term, 'COLORX') == 'seq-COLORX'
 
@@ -500,17 +500,17 @@ def test_resolve_attribute_as_color(monkeypatch):
 def test_resolve_attribute_as_compoundable(monkeypatch):
     """Test simple resolve_attribte() given a compoundable."""
     # local
-    import blessed
-    from blessed.formatters import FormattingString, resolve_attribute
+    import hamingjur
+    from hamingjur.formatters import FormattingString, resolve_attribute
 
     def resolve_cap(term, digit):
         return f'seq-{digit}'
 
     COMPOUNDABLES = {'JOINT', 'COMPOUND'}
-    monkeypatch.setattr(blessed.formatters,
+    monkeypatch.setattr(hamingjur.formatters,
                         'resolve_capability',
                         resolve_cap)
-    monkeypatch.setattr(blessed.formatters, 'COMPOUNDABLES', COMPOUNDABLES)
+    monkeypatch.setattr(hamingjur.formatters, 'COMPOUNDABLES', COMPOUNDABLES)
     term = mock.Mock()
     term.normal = 'seq-normal'
 
@@ -523,8 +523,8 @@ def test_resolve_attribute_as_compoundable(monkeypatch):
 def test_resolve_attribute_non_compoundables(monkeypatch):
     """Test recursive compounding of resolve_attribute()."""
     # local
-    import blessed
-    from blessed.formatters import ParameterizingString, resolve_attribute
+    import hamingjur
+    from hamingjur.formatters import ParameterizingString, resolve_attribute
 
     def uncompoundables(attr):
         return ['split', 'compound']
@@ -532,10 +532,10 @@ def test_resolve_attribute_non_compoundables(monkeypatch):
     def resolve_cap(term, digit):
         return f'seq-{digit}'
 
-    monkeypatch.setattr(blessed.formatters,
+    monkeypatch.setattr(hamingjur.formatters,
                         'split_compound',
                         uncompoundables)
-    monkeypatch.setattr(blessed.formatters,
+    monkeypatch.setattr(hamingjur.formatters,
                         'resolve_capability',
                         resolve_cap)
     monkeypatch.setattr(jinxed, 'tparm', fn_tparm)
@@ -556,14 +556,14 @@ def test_resolve_attribute_non_compoundables(monkeypatch):
 def test_resolve_attribute_recursive_compoundables(monkeypatch):
     """Test recursive compounding of resolve_attribute()."""
     # local
-    import blessed
-    from blessed.formatters import FormattingString, resolve_attribute
+    import hamingjur
+    from hamingjur.formatters import FormattingString, resolve_attribute
 
     # patch,
     def resolve_cap(term, digit):
         return f'seq-{digit}'
 
-    monkeypatch.setattr(blessed.formatters,
+    monkeypatch.setattr(hamingjur.formatters,
                         'resolve_capability',
                         resolve_cap)
     monkeypatch.setattr(jinxed, 'tparm', fn_tparm)
@@ -623,7 +623,7 @@ def test_formattingotherstring_picklability():
 def test_paramterizingstring_picklability():
     """Test pickle-ability of ParameterizingString."""
     # local
-    from blessed.formatters import ParameterizingString
+    from hamingjur.formatters import ParameterizingString
 
     def child():
         t = TestTerminal(force_styling=True)
@@ -647,7 +647,7 @@ def test_paramterizingstring_picklability():
 def test_pickled_parameterizing_string(monkeypatch):
     """Test pickle-ability of a formatters.ParameterizingString."""
     # local
-    from blessed.formatters import ParameterizingString
+    from hamingjur.formatters import ParameterizingString
 
     # simply send()/recv() over multiprocessing Pipe, a simple
     # pickle.loads(dumps(...)) did not reproduce this issue,
@@ -678,7 +678,7 @@ def test_pickled_parameterizing_string(monkeypatch):
 
 def test_parameterizing_proxy_string_legacy():
     """ParameterizingProxyString.__new__ and __call__ (deprecated but kept for API compat)."""
-    from blessed.formatters import ParameterizingProxyString, FormattingString
+    from hamingjur.formatters import ParameterizingProxyString, FormattingString
     fmt_pair = ('\x1b[{0}G', lambda *arg: (arg[0] + 1,))
     proxy = ParameterizingProxyString(fmt_pair, '\x1b[m', 'hpa')
     assert isinstance(proxy, str)

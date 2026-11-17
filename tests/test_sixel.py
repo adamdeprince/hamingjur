@@ -664,7 +664,7 @@ def test_window_cache_return_when_cell_query_fails():
 def test_preferred_size_cache_path():
     """Test get_sixel_height_and_width falls back to preferred_size_cache as last resort."""
     def child():
-        from blessed.terminal import WINSZ
+        from hamingjur.terminal import WINSZ
         term = TestTerminal()
 
         # Pre-cache failures for methods 1-3 so it falls through to method 4
@@ -681,7 +681,7 @@ def test_preferred_size_cache_path():
 def test_preferred_size_cache_with_zero_pixels():
     """Test that zero pixel dimensions in preferred_size_cache are skipped."""
     def child(term):
-        from blessed.terminal import WINSZ
+        from hamingjur.terminal import WINSZ
 
         term._preferred_size_cache = WINSZ(ws_row=24, ws_col=80, ws_xpixel=0, ws_ypixel=0)
         term.ungetch('\x1b[6;16;8t')  # Cell size response
@@ -706,7 +706,7 @@ def test_preferred_size_cache_with_partial_zero_pixels(ws_ypixel, ws_xpixel):
     # any of either width or height is 0 through in-band resize protocol, that
     # TIOCSWINSZ is used.
     def child(term):
-        from blessed.terminal import WINSZ
+        from hamingjur.terminal import WINSZ
 
         # Pre-cache failures for methods 1-3 so it falls through to method 4
         term._xtwinops_cell_cache = (-1, -1)
@@ -759,7 +759,7 @@ def test_xtsmgraphics_cache_hit():
 def test_tiocswinsz_path():
     """Test TIOCSWINSZ path when all queries fail but ioctl returns pixel dimensions."""
     def child(term):
-        from blessed.terminal import WINSZ
+        from hamingjur.terminal import WINSZ
         original_height_and_width = term._height_and_width
 
         def mock_height_and_width():
@@ -780,7 +780,7 @@ def test_tiocswinsz_path():
 def test_tiocswinsz_invalid_dimensions():
     """Test TIOCSWINSZ path rejects invalid (zero or too large) pixel dimensions."""
     def child(term):
-        from blessed.terminal import WINSZ
+        from hamingjur.terminal import WINSZ
         original_height_and_width = term._height_and_width
 
         def mock_height_and_width():

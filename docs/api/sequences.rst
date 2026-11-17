@@ -1,7 +1,7 @@
 sequences.py
 ------------
 
-.. automodule:: blessed.sequences
+.. automodule:: hamingjur.sequences
    :members:
    :undoc-members:
    :private-members:

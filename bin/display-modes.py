@@ -13,7 +13,7 @@ import os
 import sys
 
 # local
-from blessed import Terminal
+from hamingjur import Terminal
 
 
 def _yn(term, val):
@@ -80,8 +80,8 @@ def display_device_attributes(term):
 
 
 def display_sugar_methods(term):
-    """Query and display blessed's public API boolean detection methods."""
-    print(term.bold("Detection Methods (blessed public API):"))
+    """Query and display hamingjur's public API boolean detection methods."""
+    print(term.bold("Detection Methods (hamingjur public API):"))
     print("-" * 40)
 
     # DEC mode convenience booleans

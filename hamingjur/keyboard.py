@@ -15,16 +15,22 @@ from jinxed.has_key import _capability_names as capability_names
 
 if TYPE_CHECKING:  # pragma: no cover
     # local
-    from blessed.terminal import Terminal
+    from hamingjur.terminal import Terminal
 
 # local
-from blessed.mouse import (RE_PATTERN_MOUSE_SGR,
-                           RE_PATTERN_MOUSE_LEGACY,
-                           MouseEvent,
-                           MouseSGREvent,
-                           MouseLegacyEvent)
-from blessed.dec_modes import DecPrivateMode
-from blessed._capabilities import TermcapResponse
+from hamingjur.mouse import (RE_PATTERN_MOUSE_SGR,
+                            RE_PATTERN_MOUSE_LEGACY,
+                            MouseEvent,
+                            MouseSGREvent,
+                            MouseLegacyEvent)
+from hamingjur.dec_modes import DecPrivateMode
+from hamingjur.protocols import (FRAME_RE,
+                                FRAME_PREFIXES,
+                                TabletEvent,
+                                ProtocolEvent,
+                                parse_event,
+                                incomplete_frame)
+from hamingjur._capabilities import TermcapResponse
 
 _T = TypeVar('_T', bound='Keystroke')
 
@@ -238,11 +244,24 @@ class Keystroke(str):
     such as ``'KEY_LEFT'`` to represent a common and human-readable form of
     the Keystroke this class instance represents.
     """
+    # One string-compatible API exposes keyboard, mouse and extension events.
+    # pylint: disable=too-many-public-methods
     _name: Optional[str] = None
     _code: Optional[int] = None
     _mode: Optional[int] = None
     _match: typing.Any = None
     _modifiers: int = 1
+    _protocol_event: Optional[ProtocolEvent] = None
+
+    @property
+    def protocol_event(self) -> Optional[ProtocolEvent]:
+        """Structured Kitty/Silkie message, or None for ordinary keyboard/mouse input."""
+        return self._protocol_event
+
+    @property
+    def tablet(self) -> Optional[TabletEvent]:
+        """Tablet/touch/device report, or None for another kind of input."""
+        return self._protocol_event if isinstance(self._protocol_event, TabletEvent) else None
 
     def __new__(cls: typing.Type[_T], ucs: str = '', code: Optional[int] = None,
                 name: Optional[str] = None, mode: Optional[int] = None,
@@ -1131,8 +1150,8 @@ class Keystroke(str):
         """
         DEC Private Mode associated with this keystroke, if any.
 
-        :rtype: blessed.dec_modes.DecPrivateMode or None
-        :returns: The :class:`~blessed.dec_modes.DecPrivateMode` enum value
+        :rtype: hamingjur.dec_modes.DecPrivateMode or None
+        :returns: The :class:`~hamingjur.dec_modes.DecPrivateMode` enum value
             associated with this keystroke, or ``None`` if this is not a DEC mode event.
 
         .. note:: Mode names beginning SpecialInternal with negative values (-1,
@@ -1234,7 +1253,7 @@ class Keystroke(str):
         Return structured data for DEC private mode events (private API).
 
         Returns a namedtuple with parsed event data for supported
-        :class:`~blessed.dec_modes.DecPrivateMode` modes:
+        :class:`~hamingjur.dec_modes.DecPrivateMode` modes:
 
         - ``BRACKETED_PASTE``: :class:`BracketedPasteEvent` with ``text`` field
         - ``MOUSE_EXTENDED_SGR``, ``MOUSE_ALL_MOTION``,  ``MOUSE_REPORT_DRAG``,
@@ -1353,7 +1372,7 @@ def get_keyboard_sequences(  # pylint: disable=protected-access
     r"""
     Return mapping of keyboard sequences paired by keycodes.
 
-    :arg blessed.Terminal term: :class:`~.Terminal` instance.
+    :arg hamingjur.Terminal term: :class:`~.Terminal` instance.
     :returns: mapping of keyboard unicode sequences paired by keycodes
         as integer.  This is used as the argument ``mapper`` to
         the supporting function :func:`resolve_sequence`.
@@ -1451,6 +1470,11 @@ def resolve_sequence(text: str,
     not negotiate about any DEC Private modes but transmits metaSendsEscape
     anyway, so exhaustive match is performed in all cases.
     """
+    # Protocol string frames are indivisible input events. Keep incomplete frames
+    # buffered across reads/timeouts, rather than interpreting their payload as keys.
+    if incomplete_frame(text):
+        return Keystroke()
+
     # Handle None prefixes (convert to empty set for compatibility)
     if prefixes is None:
         prefixes = set()
@@ -1458,6 +1482,7 @@ def resolve_sequence(text: str,
     # First try advanced keyboard protocol matchers and DEC events
     ks = None
     match_funcs = [
+        _match_protocol_event,
         functools.partial(_match_dec_event, dec_mode_cache=dec_mode_cache),
         _match_kitty_key,
         _match_modify_other_keys,
@@ -1489,6 +1514,7 @@ def resolve_sequence(text: str,
         text.startswith('\x1b')
         and len(text) >= 2
         and (final or text[:2] not in prefixes)
+        and _protocol_allows_meta(text, final)
         # pylint:disable=protected-access
         and (ks is None or (ks.code == jinxed.KEY_EXIT and ks._mode is None))
     )
@@ -1499,6 +1525,27 @@ def resolve_sequence(text: str,
     if ks is None:
         ks = Keystroke(ucs=text and text[0] or '')
     return ks
+
+
+def _protocol_allows_meta(text: str, final: bool) -> bool:
+    """Delay an Alt-key interpretation while a recognized string header is arriving."""
+    return final or not any(prefix.startswith(text) for prefix in FRAME_PREFIXES)
+
+
+def _match_protocol_event(text: str) -> Optional[Keystroke]:
+    """Keep one Kitty/Silkie frame together, including invalid or future-version frames."""
+    frame = FRAME_RE.match(text)
+    if frame is None:
+        return None
+    raw = frame.group()
+    try:
+        event = parse_event(raw)
+    except ValueError:
+        event = ProtocolEvent('unknown', {}, raw=raw)
+    key = Keystroke(raw, name='PROTOCOL_' + event.protocol.upper().replace(':', '_')
+                    .replace('-', '_'))
+    key._protocol_event = event  # pylint: disable=protected-access
+    return key
 
 
 def _time_left(stime: float, timeout: Optional[float]) -> Optional[float]:
@@ -1525,7 +1572,7 @@ def _read_until(term: 'Terminal',
     """
     Convenience read-until-pattern function, supporting :meth:`~.get_location`.
 
-    :arg blessed.Terminal term: :class:`~.Terminal` instance.
+    :arg hamingjur.Terminal term: :class:`~.Terminal` instance.
     :arg float timeout: timeout period, may be set to None to indicate no
         timeout (where 0 is always returned).
     :arg str pattern: target regular expression pattern to seek.
@@ -1545,10 +1592,6 @@ def _read_until(term: 'Terminal',
     must ensure any such keyboard data is well-received by the next call to
     term.inkey() without delay.
     """
-    # Maximum buffer size to prevent runaway condition. 64KB is more than any query blessed makes
-    # for automatic terminal response. This prevents "loops" by misbehaving protocols and clients.
-    max_buffer_size = 65536
-
     # pylint: disable=protected-access
     stime = time.time()
     match, buf = None, ''
@@ -1563,10 +1606,6 @@ def _read_until(term: 'Terminal',
         match = re.search(pattern=pattern, string=buf)
         if match is not None:
             # match
-            break
-
-        if len(buf) > max_buffer_size:
-            # buffer overflow - likely an echo loop or misbehaving terminal
             break
 
         if timeout is not None and not _time_left(stime, timeout):
@@ -1592,7 +1631,7 @@ def _match_dec_event(text: str,
     false positives like matching focus events when focus tracking is disabled.
     """
     # local
-    from blessed.dec_modes import DecModeResponse  # pylint: disable=import-outside-toplevel
+    from hamingjur.dec_modes import DecModeResponse  # pylint: disable=import-outside-toplevel
 
     if dec_mode_cache is None:
         dec_mode_cache = {}

@@ -19,7 +19,7 @@ import functools
 from collections import deque
 
 # local
-from blessed import Terminal
+from hamingjur import Terminal
 
 # For convenience in type hints and initialization
 DecPrivateMode = Terminal.DecPrivateMode

@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Hamingjur: a Python terminal library with portable text and input, Kitty graphics, and Silkie extensions. Project guide, examples, and searchable source-derived API documentation.">
+<meta name="color-scheme" content="light dark">
+<link rel="canonical" href="https://hamingjur.goblinreactor.com/">
+<title>Hamingjur — Open-source Python terminal library &amp; API</title>
+<style>
+/* Palette adapted from https://goblin-core.dev/; project documentation layout. */
+:root{--paper:#f7f6f1;--surface:#fffefa;--ink:#12140f;--muted:#62645c;--line:#d8d8cf;--acid:#a6e22e;--acid-dark:#548a08;--cyan:#0b8897;--orange:#ed6b2f;--accent:#426c06;--accent-soft:#edf4df;--green:#426c06;--code:#11130f;--code-ink:#f7f6f1;--button-bg:#12140f;--button-ink:#fffefa;--sidebar:244px;--mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;--sans:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+html[data-theme="dark"]{--paper:#11130f;--surface:#1b1e17;--ink:#f7f6f1;--muted:#b7baaf;--line:#373a32;--accent:#a6e22e;--accent-soft:#26321a;--green:#a6e22e;--code:#0c0e09;--code-ink:#f7f6f1;--button-bg:#a6e22e;--button-ink:#11130f}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:96px}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.65 var(--sans);text-rendering:optimizeLegibility}a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:4px}a:hover{text-decoration:underline}button,input,select{font:inherit}button,a,input,select,summary{ -webkit-tap-highlight-color:transparent}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:4px}button{color:inherit}code,kbd,pre{font-family:var(--mono)}:not(pre)>code{font-size:.86em;background:var(--accent-soft);padding:.15em .3em;border-radius:4px;overflow-wrap:anywhere}pre{tab-size:4}h1,h2,h3,h4,h5,p{margin-top:0}h1,h2,h3{line-height:1.12;letter-spacing:-.045em}h2{font-size:clamp(30px,3vw,42px);margin-bottom:22px;font-weight:550}h3{font-size:23px;font-weight:550}p{margin-bottom:20px}button:disabled{cursor:default}.skip{position:fixed;left:16px;top:-80px;z-index:99;background:var(--surface);padding:12px}.skip:focus{top:12px}.sr-only{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%)}[hidden]{display:none!important}
+.topbar{height:76px;position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line);background:var(--paper);display:flex;align-items:center;justify-content:space-between;padding:0 34px;gap:20px}.brand{display:inline-flex;align-items:center;gap:11px;font-size:21px;font-weight:650;letter-spacing:-.6px;color:var(--ink);text-decoration:none}.brand svg{width:31px;height:31px;color:var(--accent)}.brand:hover{text-decoration:none}.brand .version{font:11px var(--mono);border:1px solid var(--line);padding:4px 7px;border-radius:5px;letter-spacing:0;color:var(--muted);margin-left:5px}.topnav{display:flex;gap:26px;align-items:center;font-size:13px}.topnav>a{color:var(--muted);text-decoration:none}.topnav>a:hover{color:var(--accent)}.icon-button,.menu-button{border:1px solid var(--line);border-radius:6px;background:transparent;padding:7px 10px;line-height:1.2}.icon-button{min-width:36px}.menu-button{display:none}
+.layout{display:grid;grid-template-columns:var(--sidebar) minmax(0,1fr);max-width:1600px;margin:auto}.sidebar{position:sticky;top:76px;align-self:start;height:calc(100vh - 76px);overflow-y:auto;border-right:1px solid var(--line);padding:38px 24px 28px 34px;font-size:13px}.nav-title{font:10px var(--mono);text-transform:uppercase;letter-spacing:.17em;color:var(--muted);margin:0 0 13px}.sidebar nav{display:flex;flex-direction:column;gap:3px}.sidebar nav a{display:block;padding:7px 11px;color:var(--muted);text-decoration:none;border-radius:5px;border-left:2px solid transparent}.sidebar nav a.active{color:var(--accent);background:var(--accent-soft);border-left-color:var(--accent)}.sidebar nav a:hover{color:var(--ink)}.sidebar-group{margin-bottom:28px}.side-note{font-size:12px;line-height:1.7;color:var(--muted);border-top:1px solid var(--line);padding-top:22px;margin-top:32px}.side-note strong{display:block;color:var(--ink);font-weight:500}.sidebar .module-link{font:11px var(--mono);padding:6px 11px;overflow-wrap:anywhere}.main{min-width:0;padding:0 clamp(26px,5vw,82px)}.section{padding:70px 0;border-bottom:1px solid var(--line);scroll-margin-top:88px}.eyebrow{font:11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:10px;margin-bottom:24px}.eyebrow::before{content:"";height:1px;width:25px;background:currentColor}.section-intro{max-width:680px;color:var(--muted);font-size:17px}.section-num{color:var(--muted);font:11px var(--mono);letter-spacing:.08em;margin-bottom:15px}.pill{display:inline-block;border:1px solid var(--line);border-radius:3px;font:11px var(--mono);color:var(--muted);padding:5px 10px}.button{display:inline-flex;align-items:center;justify-content:center;gap:20px;padding:11px 17px;border:1px solid var(--button-bg);border-radius:3px;background:var(--button-bg);color:var(--button-ink);font-size:13px;font-weight:550;text-decoration:none}.button:hover{text-decoration:none;opacity:.85}.button.secondary{background:transparent;color:var(--ink);border-color:var(--line)}.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+.hero{padding-top:42px;padding-bottom:0}.hero h1{font-size:clamp(48px,5.2vw,76px);font-weight:800;margin:0 0 25px;max-width:920px;line-height:1.04}.hero-copy{max-width:680px;font-size:18px;line-height:1.7;color:var(--muted)}.hero-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:28px}.hero-stage{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);margin-top:32px;border:1px solid var(--line);border-radius:9px;overflow:hidden;min-width:0}.terminal{background:var(--code);color:var(--code-ink);position:relative;min-width:0}.terminal-bar{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff16;padding:13px 17px;font:10px var(--mono);color:#b7baaf}.dots{display:flex;gap:5px}.dots i{width:6px;height:6px;display:block;border-radius:50%;background:#62645c}.terminal-output{padding:24px 24px 0;font:12px/1.9 var(--mono);white-space:pre-wrap;min-height:145px}.terminal-output .prompt{color:var(--orange)}.terminal-output .green{color:var(--acid)}.terminal-output .dim{color:#b7baaf}.terminal-art{display:block;width:100%;height:135px;margin:0}.stage-notice{font:10px var(--mono);color:#b7baaf;padding:10px 18px;border-top:1px solid #ffffff16}.stage-code{background:var(--surface);min-width:0;display:flex;flex-direction:column}.demo-tabs{display:flex;gap:5px;padding:11px 13px;border-bottom:1px solid var(--line)}.demo-tabs button{background:transparent;border:0;font:11px var(--mono);padding:6px 9px;border-radius:4px;color:var(--muted)}.demo-tabs button[aria-selected=true]{background:var(--accent-soft);color:var(--accent)}.demo-code{margin:0;padding:23px 20px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.85;min-height:275px;color:var(--ink)}.hero-bottom{display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;padding:22px 0;font:11px var(--mono);color:var(--muted)}
+.principles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:30px;margin-top:40px}.principle{border-top:2px solid var(--ink);padding-top:18px}.principle .number{font:11px var(--mono);color:var(--accent);margin-bottom:15px}.principle h3{font-size:19px;margin-bottom:12px}.principle p{font-size:14px;color:var(--muted);margin:0}.architecture{margin-top:34px;border:1px solid var(--line);border-radius:7px;background:var(--surface);padding:22px}.architecture-row{display:grid;grid-template-columns:1fr 35px 1fr 35px 1fr;align-items:center;gap:10px}.architecture-step{padding:16px 12px;background:var(--paper);border:1px solid var(--line);border-radius:4px;text-align:center;font-size:13px}.architecture-step strong{display:block;margin-bottom:4px;font-weight:550}.architecture-step span{font:10px var(--mono);color:var(--muted)}.arrow{text-align:center;color:var(--accent)}.caption{font:11px/1.8 var(--mono);color:var(--muted);margin:15px 0 0}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:35px;align-items:start;margin-top:30px}.code-block{background:var(--code);color:var(--code-ink);border-radius:7px;overflow:hidden;margin:20px 0}.code-header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff19;padding:10px 16px;color:#c5c8be;font:10px var(--mono)}.code-block pre{margin:0;padding:20px;font:12px/1.85 var(--mono);overflow-x:auto;white-space:pre}.copy{font:10px var(--mono);border:1px solid #ffffff38;background:transparent;color:#f7f6f1;border-radius:4px;padding:3px 9px}.copy:hover{background:#ffffff15}.small{font-size:13px;color:var(--muted)}.note{border-left:2px solid var(--accent);padding:14px 19px;background:var(--accent-soft);font-size:14px;margin-top:24px;border-radius:0 5px 5px 0}.note p:last-child{margin-bottom:0}.note strong{font-weight:600}.checklist{padding-left:20px;font-size:14px;color:var(--muted)}.checklist li{padding-bottom:9px}.checklist strong{color:var(--ink);font-weight:500}.table-wrap{overflow-x:auto;margin-top:28px;border:1px solid var(--line);border-radius:6px}table{border-collapse:collapse;width:100%;font-size:13px;text-align:left}th{font:10px var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:14px 18px;border-bottom:1px solid var(--line);background:var(--surface)}td{padding:16px 18px;border-bottom:1px solid var(--line);vertical-align:top}tr:last-child td{border-bottom:0}td:first-child{font-weight:550}td:last-child{color:var(--muted)}td code{font-size:11px}.protocol-tag{font:10px var(--mono);color:var(--green);white-space:nowrap}.recipe{margin-top:36px}.recipe h3{margin-bottom:10px}.recipe p{color:var(--muted);font-size:14px;max-width:700px}.return-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:6px;margin-top:27px;overflow:hidden}.return-item{padding:20px;border-bottom:1px solid var(--line)}.return-item:nth-child(odd){border-right:1px solid var(--line)}.return-item:nth-last-child(-n+2){border-bottom:0}.return-item code{display:block;background:transparent;padding:0;font-size:12px;margin-bottom:9px}.return-item p{margin:0;color:var(--muted);font-size:13px}.return-type{font:11px var(--mono);color:var(--green);display:block;margin-bottom:9px}.demo-run{margin-top:30px;border:1px solid var(--line);border-radius:8px;padding:28px;background:var(--surface)}.demo-run h3{font-size:26px}.keys{display:flex;gap:22px;flex-wrap:wrap;margin-top:20px;font-size:12px;color:var(--muted)}kbd{display:inline-flex;justify-content:center;align-items:center;border:1px solid var(--line);border-bottom-width:3px;border-radius:4px;padding:2px 7px;color:var(--ink);font-size:11px;background:var(--paper);margin-right:6px}.api-head{display:flex;justify-content:space-between;align-items:end;gap:20px}.api-head .small{font:11px var(--mono);white-space:nowrap}.api-toolbar{display:flex;gap:10px;flex-wrap:wrap;background:var(--paper);margin:25px 0 12px;position:sticky;top:76px;z-index:10;padding:12px 0;border-bottom:1px solid var(--line)}.search-wrap{flex:1;min-width:170px;position:relative}.search-wrap span{position:absolute;left:13px;top:9px;color:var(--muted);font-size:18px;pointer-events:none}.api-toolbar input,.api-toolbar select{width:100%;border:1px solid var(--line);border-radius:5px;padding:10px 12px;background:var(--surface);color:var(--ink);font-size:12px;line-height:1.5}.api-toolbar input{padding-left:37px}.api-toolbar select{width:auto;max-width:100%;font:11px var(--mono)}.plain-button{border:1px solid var(--line);border-radius:5px;padding:8px 12px;background:var(--surface);font-size:11px}.result-line{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:24px;color:var(--muted);font-size:12px}.api-module{border:1px solid var(--line);border-radius:6px;margin:12px 0;background:var(--surface)}.api-module>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:18px 20px;gap:20px}.api-module>summary::-webkit-details-marker{display:none}.api-module>summary code{background:transparent;padding:0;font-size:13px;color:var(--ink)}.api-module>summary::before{content:"+";font:16px var(--mono);color:var(--accent)}.api-module[open]>summary::before{content:"−"}.api-module>summary span{margin-left:auto;color:var(--muted);font:10px var(--mono)}.module-content{border-top:1px solid var(--line);padding:0 20px 12px}.module-description{font-size:13px;color:var(--muted);margin:20px 0;white-space:pre-wrap}.api-entry{border-top:1px solid var(--line);scroll-margin-top:160px;min-width:0}.api-entry>summary{list-style:none;cursor:pointer;display:flex;align-items:center;flex-wrap:wrap;gap:9px;padding:15px 0}.api-entry>summary::-webkit-details-marker{display:none}.entry-name{font:12px/1.7 var(--mono);color:var(--ink);overflow-wrap:anywhere}.entry-kind{font:9px var(--mono);color:var(--green);border:1px solid var(--line);padding:3px 6px;border-radius:3px;margin-left:auto;white-space:nowrap}.entry-brief{width:100%;font-size:12px;line-height:1.7;color:var(--muted);overflow-wrap:anywhere}.entry-content{padding-bottom:23px;min-width:0}.entry-tools{display:flex;gap:18px;justify-content:flex-end;font:10px var(--mono);margin-bottom:10px}.entry-tools a{color:var(--muted)}.signature{white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--line);background:var(--paper);padding:15px;border-radius:5px;font-size:12px;line-height:1.8;margin:10px 0 17px}.docstring{font:12px/1.9 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;margin:0;color:var(--muted)}.entry-content h5{font-size:12px;margin:22px 0 10px}.fields{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;line-height:1.9;color:var(--muted);padding:15px;background:var(--paper);border:1px solid var(--line);border-radius:4px}.empty{padding:35px;border:1px dashed var(--line);border-radius:6px;color:var(--muted);text-align:center}.api-info{font-size:12px;color:var(--muted);margin-top:25px}.footer{padding:35px 0 45px;display:flex;flex-wrap:wrap;gap:15px;justify-content:space-between;font-size:12px;color:var(--muted)}.footer a{color:var(--muted)}.back-to-top{font:11px var(--mono)}.notice{position:fixed;right:22px;bottom:22px;padding:12px 18px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);z-index:50;max-width:calc(100vw - 44px);font-size:13px;box-shadow:0 5px 24px #00000015}
+@media(min-width:1500px){.hero h1{font-size:80px}.main{padding-right:90px}}@media(max-width:1100px){:root{--sidebar:215px}.sidebar{padding-left:22px;padding-right:18px}.topbar{padding:0 24px}.hero-stage{grid-template-columns:1fr}.terminal-art{height:110px}.terminal-output{min-height:130px}.demo-code{min-height:220px}.principles{gap:22px}.main{padding:0 32px}.hero h1{font-size:62px}.split{gap:25px}.topnav{gap:20px}.api-head{align-items:start;flex-direction:column;gap:0}}@media(max-width:760px){html{scroll-padding-top:82px}.topbar{height:65px;padding:0 19px;gap:12px}.brand{font-size:19px}.brand .version{display:none}.brand svg{width:25px;height:25px}.topnav{gap:12px}.topnav>a{display:none}.menu-button{display:inline-block}.layout{display:block}.sidebar{display:none;position:fixed;top:65px;left:0;bottom:0;height:auto;width:280px;max-width:85vw;background:var(--paper);z-index:30;padding:25px;box-shadow:10px 0 30px #0002}.sidebar.visible{display:block}.main{padding:0 22px}.section{padding:48px 0}.hero{padding-top:43px;padding-bottom:0}.hero h1{font-size:clamp(43px,9.5vw,65px)}.hero-copy{font-size:16px}.hero-stage{margin-top:30px}.principles{grid-template-columns:1fr;gap:25px}.principle{padding-top:15px}.principle .number{margin-bottom:9px}.split{grid-template-columns:1fr;gap:12px}.architecture-row{grid-template-columns:1fr}.arrow{transform:rotate(90deg);font-size:22px;line-height:1}.architecture{padding:18px}.return-grid{grid-template-columns:1fr}.return-item:nth-child(odd){border-right:0}.return-item:nth-last-child(2){border-bottom:1px solid var(--line)}.api-toolbar{top:65px}.api-toolbar select{flex:1}.api-module>summary{padding:16px 14px}.module-content{padding:0 14px 10px}.entry-name{font-size:11px}.entry-kind{margin-left:0}.demo-run{padding:20px}.hero-bottom{font-size:10px}.code-block pre{font-size:11px;padding:17px}.footer{font-size:11px}.docstring{font-size:11px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}@media print{.sidebar,.topbar,.actions,.api-toolbar,.copy,.demo-tabs,.notice,.back-to-top{display:none!important}.layout{display:block}.main{padding:0}.section{padding:25px 0}.hero h1{font-size:40px}.hero-stage{display:block}.terminal{display:none}.api-entry{break-inside:avoid}body{background:white;color:black}.api-module,.signature{background:white}.docstring{color:#333}}
+
+/* Repository-style masthead, visible upstream credit, and contribution links. */
+.brand{font-family:var(--mono);font-size:19px;font-weight:750}.brand svg{color:var(--orange)}
+.topnav>a{font-weight:600}.eyebrow{font-weight:650;letter-spacing:.08em;margin-bottom:16px}
+.eyebrow::before{content:"//";width:auto;height:auto;background:none;color:var(--orange)}
+.hero h1{margin-bottom:15px}.hero-copy{max-width:730px;font-size:18px;margin-bottom:22px}
+.fork-credit{display:flex;align-items:flex-start;gap:13px;padding:15px 18px;border:1px solid var(--line);border-left:4px solid var(--acid);background:var(--surface);max-width:850px}
+.fork-credit svg{width:18px;min-width:18px;height:21px;color:var(--orange);margin-top:2px}
+.fork-credit p{margin:0;font-size:13px;line-height:1.75;color:var(--muted)}
+.fork-credit strong{color:var(--ink);font-weight:650}.fork-credit a{font-weight:650}
+.hero .actions{margin-top:22px}.hero-meta{margin-top:20px;gap:8px}.hero-meta .pill{padding:0;display:inline-flex;overflow:hidden;line-height:1.5;font-size:10px}
+.badge-label{padding:5px 9px;background:var(--surface);border-right:1px solid var(--line)}
+.hero-meta .pill strong{font-weight:550;color:var(--ink);padding:5px 9px}.hero-meta .license-badge strong{color:#12140f;background:var(--acid)}
+.contribute-grid{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:28px}
+.contribute-grid article{border-top:2px solid var(--line);padding-top:23px}.contribute-grid h3{font-size:20px;margin-bottom:14px}
+.contribute-grid p{font-size:14px;color:var(--muted)}.project-links{display:flex;flex-wrap:wrap;gap:10px 24px;font-size:13px;font-weight:600;margin-top:24px}
+.project-links a{color:var(--accent)}.project-facts{margin:20px 0 0;font-size:13px}
+.project-facts div{display:grid;grid-template-columns:110px 1fr;border-top:1px solid var(--line);padding:12px 0;gap:12px}
+.project-facts dt{font:10px/1.7 var(--mono);text-transform:uppercase;color:var(--muted)}.project-facts dd{margin:0;color:var(--ink)}
+@media(max-width:760px){.hero{padding-top:29px}.hero h1{font-size:clamp(42px,11vw,62px)}.hero-copy{font-size:16px}.fork-credit{padding:12px 13px;gap:10px}.fork-credit p{font-size:12px}.hero .actions{gap:9px}.button{padding:10px 13px;font-size:12px}.contribute-grid{grid-template-columns:1fr;gap:25px}.brand{font-size:17px}}
+@media print{.hero h1{font-size:40px}.fork-credit{border:1px solid #999;background:white}.fork-credit p,.fork-credit strong{color:black}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="topbar">
+  <a class="brand" href="#overview" aria-label="Hamingjur home"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M5 6v20M15 6v20M25 6v20M5 16l10-7 10 7-10 7-10-7Z" stroke="currentColor" stroke-width="2" stroke-linecap="square"/></svg>hamingjur<span class="version">v{{VERSION}}</span></a>
+  <nav class="topnav" aria-label="Header navigation"><a href="#quickstart">Install</a><a href="#api">API reference</a><a href="#contribute">Contribute</a><a href="https://github.com/adamdeprince/hamingjur" target="_blank" rel="noopener">GitHub ↗</a><button class="icon-button" id="theme-toggle" aria-label="Switch to dark theme" title="Change theme">◐</button><button class="menu-button" id="menu-toggle" aria-expanded="false" aria-controls="sidebar">Menu</button></nav>
+</header>
+<div class="layout">
+<aside class="sidebar" id="sidebar" aria-label="Documentation navigation">
+  <div class="sidebar-group"><p class="nav-title">The project</p><nav>
+  <a href="#overview" class="active">Overview</a><a href="#why">How it fits together</a><a href="#quickstart">Installation &amp; first steps</a><a href="#capabilities">Feature map</a><a href="#recipes">Working examples</a><a href="#contracts">Response types &amp; lifecycle</a><a href="#showcase">Try the showcase</a><a href="#contribute">Contributing &amp; upstream</a></nav></div>
+  <div class="sidebar-group"><p class="nav-title">API reference</p><nav><a href="#api">Search all APIs</a><a class="module-link" href="#module-terminal">Terminal</a><a class="module-link" href="#module-graphics">Graphics &amp; images</a><a class="module-link" href="#module-silkie">Silkie &amp; channels</a><a class="module-link" href="#module-protocols">Events &amp; responses</a><a class="module-link" href="#module-kitty">Kitty encoders</a><a class="module-link" href="#module-line_editor">Line editor</a><a class="module-link" href="#module-remote_control">Remote control</a></nav></div>
+  <div class="side-note"><strong>Pure Python. Terminal native.</strong>Python 3.9+ · MIT<br>Core dependencies: <code>wcwidth</code> and <code>jinxed</code>.<br>Pillow is optional.</div>
+</aside>
+<main class="main" id="main">
+<section class="section hero" id="overview" aria-labelledby="hero-title">
+  <p class="eyebrow">Open source / Python terminal library</p>
+  <h1 id="hero-title">Hamingjur</h1>
+  <p class="hero-copy">Portable terminal text and input, Kitty graphics, and Silkie extensions for pen, touch, typography, and display control. A pure Python library for building terminal applications.</p>
+  <aside class="fork-credit" aria-label="Upstream attribution">
+    <svg viewBox="0 0 20 24" fill="none" aria-hidden="true"><circle cx="5" cy="4" r="2.5" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="4" r="2.5" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="20" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 7v2a5 5 0 0 0 5 5m5-7v2a5 5 0 0 1-5 5v3" stroke="currentColor" stroke-width="1.5"/></svg>
+    <p><strong>Forked from <a href="https://github.com/jquast/blessed" target="_blank" rel="noopener">Blessed</a>.</strong> Thanks to Jeff Quast, Erik Rose, Avram Lubkin, and the Blessed contributors. Blessed was itself forked from Erik Rose’s <a href="https://github.com/erikrose/blessings" target="_blank" rel="noopener">blessings</a>.</p>
+  </aside>
+  <div class="actions"><a class="button" href="https://github.com/adamdeprince/hamingjur" target="_blank" rel="noopener">Source on GitHub <span aria-hidden="true">↗</span></a><a class="button secondary" href="#api">Read the API <span aria-hidden="true">↓</span></a><a class="button secondary" href="#quickstart">Install from source</a></div>
+  <div class="hero-meta" aria-label="Project information"><span class="pill license-badge"><span class="badge-label">license</span><strong>MIT</strong></span><span class="pill"><span class="badge-label">python</span><strong>≥ 3.9</strong></span><span class="pill"><span class="badge-label">version</span><strong>{{VERSION}}</strong></span><span class="pill"><span class="badge-label">dependencies</span><strong>wcwidth · jinxed</strong></span></div>
+  <div class="hero-stage">
+    <div class="terminal"><div class="terminal-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span>hamingjur / terminal preview</span><span>↗</span></div>
+      <div class="terminal-output" id="terminal-preview" aria-live="polite"><span class="prompt">❯ </span>python hello.py<br><span class="green">Hello from Hamingjur.</span><br><span class="dim">Text. Color. Input. A place to begin.</span></div>
+      <svg class="terminal-art" viewBox="0 0 540 140" role="img" aria-labelledby="art-title"><title id="art-title">Illustration of colored vector curves over a terminal grid</title><defs><pattern id="grid" width="27" height="20" patternUnits="userSpaceOnUse"><path d="M27 0H0V20" fill="none" stroke="#b7baaf" stroke-opacity=".1" stroke-width=".7"/></pattern><linearGradient id="curve" x1="0" x2="1"><stop stop-color="#a6e22e"/><stop offset=".5" stop-color="#0b8897"/><stop offset="1" stop-color="#ed6b2f"/></linearGradient></defs><rect width="540" height="140" fill="url(#grid)"/><path d="M-15 113C58 113 60 25 130 25S206 110 272 110 352 36 408 36 478 83 560 30" fill="none" stroke="url(#curve)" stroke-width="3"/><path d="M-15 132C58 132 60 44 130 44S206 129 272 129 352 55 408 55 478 102 560 49" fill="none" stroke="url(#curve)" stroke-opacity=".25" stroke-width="2"/><circle cx="130" cy="25" r="5" fill="#a6e22e"/><circle cx="272" cy="110" r="5" fill="#0b8897"/><circle cx="408" cy="36" r="5" fill="#ed6b2f"/></svg>
+      <div class="stage-notice">Illustrative browser preview · actual rendering happens in your terminal</div>
+    </div>
+    <div class="stage-code"><div class="demo-tabs" role="tablist" aria-label="Preview examples"><button role="tab" id="tab-text" aria-controls="demo-panel" aria-selected="true" tabindex="0" data-demo="text">Text &amp; input</button><button role="tab" id="tab-graphics" aria-controls="demo-panel" aria-selected="false" tabindex="-1" data-demo="graphics">Graphics</button><button role="tab" id="tab-silkie" aria-controls="demo-panel" aria-selected="false" tabindex="-1" data-demo="silkie">Silkie</button></div><pre class="demo-code" id="demo-panel" role="tabpanel" aria-labelledby="tab-text" tabindex="0"><code id="demo-code">from hamingjur import Terminal
+
+term = Terminal()
+print(term.bold_green("Hello from Hamingjur."))
+
+with term.cbreak():
+    key = term.inkey(timeout=1)
+    if key:
+        print(f"You pressed {key!r}")</code></pre></div>
+  </div>
+  <div class="hero-bottom"><span>Pure Python · optional Pillow support</span><span>Kitty protocols + Silkie extensions</span><span>Import namespace: hamingjur</span></div>
+</section>
+
+<section class="section" id="why">
+  <p class="section-num">01 / PROJECT OVERVIEW</p><h2>How Hamingjur fits together.</h2>
+  <p class="section-intro">Start with readable text and ordinary input. Add graphics, richer devices, or precise display feedback through the same <code>Terminal</code> object. Discover capabilities before depending on them.</p>
+  <div class="principles"><article class="principle"><div class="number">01 — PORTABLE FOUNDATIONS</div><h3>Text is still first class.</h3><p>Colors, cursor movement, Unicode width, full-screen contexts, keyboard input, mouse events, and a headless line editor.</p></article><article class="principle"><div class="number">02 — RICHER PROTOCOLS</div><h3>Pixels, paths, and pens.</h3><p>Kitty image transport and Silkie vector scenes, shaped text, tablet pressure, multitouch, gestures, and terminal-local ink.</p></article><article class="principle"><div class="number">03 — EXPLICIT CONTROL</div><h3>Ask, then act.</h3><p>Read capability replies and granted modes. Scope reporting with context managers and release the resources your application owns.</p></article></div>
+  <div class="architecture"><div class="architecture-row"><div class="architecture-step"><strong>Your Python application</strong><span>state · content · event loop</span></div><div class="arrow" aria-hidden="true">→</div><div class="architecture-step"><strong>Hamingjur</strong><span>Terminal · encoders · clients</span></div><div class="arrow" aria-hidden="true">→</div><div class="architecture-step"><strong>The terminal</strong><span>rendering · shaping · hardware</span></div></div><p class="caption">The terminal performs vector rasterization, text shaping, font loading, and hardware access. Hamingjur encodes requests and reads replies.</p></div>
+  <p class="small" style="margin-top:24px">Hamingjur is maintained by Adam DePrince. It is an independent MIT-licensed fork, with inherited work and notices from Jeff Quast, Erik Rose, Avram Lubkin, and other Blessed contributors. Its <code>hamingjur</code> namespace can coexist with upstream <code>blessed</code>.</p>
+</section>
+
+<section class="section" id="quickstart">
+  <p class="section-num">02 / GET STARTED</p><h2>Installation &amp; a first program.</h2>
+  <p class="section-intro">Install from PyPI, or work from a source checkout. The core APIs need only Python, <code>wcwidth</code>, and <code>jinxed</code>. Add Pillow when you want adaptive image drawing.</p>
+  <div class="split"><div><h3>Install from PyPI</h3><div class="code-block"><div class="code-header"><span>SHELL</span><button class="copy" data-copy="install-code">Copy</button></div><pre><code id="install-code">python -m pip install hamingjur
+
+# Optional Pillow image support
+python -m pip install 'hamingjur[images]'
+
+# Or, from a source checkout
+python -m pip install -e .</code></pre></div><p class="small">The optional images extra adds Pillow. The editable command is for development from the repository root.</p></div>
+  <div><h3>Run in a terminal</h3><div class="code-block"><div class="code-header"><span>PYTHON · hello.py</span><button class="copy" data-copy="hello-code">Copy</button></div><pre><code id="hello-code">from hamingjur import Terminal
+
+term = Terminal()
+with term.fullscreen(), term.cbreak(), term.hidden_cursor():
+    print(term.home + term.clear, end="")
+    print(term.bold_green("Hello from Hamingjur."))
+    print("Press q to exit.")
+
+    while True:
+        key = term.inkey(timeout=0.1)
+        if key == "q" or key.name == "KEY_ESCAPE":
+            break</code></pre></div></div></div>
+  <div class="note"><strong>Rendering follows the output stream.</strong> Terminal writers respect <code>term.does_styling</code>. Redirected output can stay escape-free, and <code>NO_COLOR</code> disables styling. Run visual demos interactively with terminal input and output.</div>
+</section>
+
+<section class="section" id="capabilities">
+  <p class="section-num">03 / FEATURE MAP</p><h2>Features &amp; terminal support.</h2><p class="section-intro">The APIs cover both familiar terminal behavior and newer extensions. Encoding a request establishes what your application sent; the terminal’s reply establishes what it supports.</p>
+  <div class="table-wrap"><table><thead><tr><th>What you need</th><th>Start here</th><th>Terminal requirement</th></tr></thead><tbody>
+  <tr><td>Text, color &amp; layout</td><td><a href="#api-hamingjur-terminal-Terminal"><code>Terminal</code></a><br><code>bold</code>, <code>color_rgb()</code>, <code>move_xy()</code>, <code>length()</code>, <code>wrap()</code></td><td>Terminfo-backed capabilities; Unicode width through wcwidth.</td></tr>
+  <tr><td>Keyboard, mouse &amp; editing</td><td><code>inkey()</code>, <code>async_inkey()</code>, <code>mouse_enabled()</code>, <a href="#api-hamingjur-line_editor-LineEditor"><code>LineEditor</code></a></td><td>Reporting modes depend on the terminal. The line editor is headless.</td></tr>
+  <tr><td>Raster &amp; adaptive images</td><td><a href="#api-hamingjur-graphics-Graphics-draw"><code>term.graphics.draw()</code></a>, <code>prepare()</code>, <code>negotiate()</code></td><td><span class="protocol-tag">KITTY / SILKIE</span><br>Pillow for adaptive preparation; direct encoders need no Pillow.</td></tr>
+  <tr><td>Vectors &amp; shaped text</td><td><code>graphics.scene()</code>, <code>patch()</code>, <code>text_record()</code>, <code>measure_text()</code></td><td><span class="protocol-tag">SILKIE · f=200</span><br>Rendering and shaping happen in the terminal.</td></tr>
+  <tr><td>Pen, touch, pads &amp; gestures</td><td><code>term.tablet</code>, <code>term.scroll</code>, <code>term.gesture</code>, <code>key.tablet</code></td><td><span class="protocol-tag">SILKIE · OSC 777</span><br>Discover selector support, capabilities, and granted reporting bits.</td></tr>
+  <tr><td>Ink &amp; haptics</td><td><code>term.ink</code>, <code>term.haptic</code></td><td><span class="protocol-tag">SILKIE</span><br>Local ink needs a vector image and a brush; haptics need a permitted device.</td></tr>
+  <tr><td>Typography &amp; spatial styling</td><td><code>select_font()</code>, <code>term.depth()</code>, <code>foreground_brightness()</code>, <code>color_gamut()</code>, <code>background_alpha()</code></td><td><span class="protocol-tag">SILKIE</span><br>Visible effects depend on fonts, display headroom, gamut, and spatial settings.</td></tr>
+  <tr><td>Geometry &amp; presentation</td><td><code>term.window</code>, <code>get_cell_size()</code>, <code>term.display</code>, <code>term.latency</code>, <code>term.frame</code></td><td>VT/xterm geometry; Silkie for display reports and presentation feedback.</td></tr>
+  <tr><td>Clipboard, drops &amp; notifications</td><td><a href="#module-kitty"><code>hamingjur.kitty</code></a>, <code>term.kitty</code>, <code>ProtocolEvent</code></td><td><span class="protocol-tag">KITTY / SILKIE</span><br>Applications own transfer state and policy. Silkie adds notification return routes.</td></tr>
+  <tr><td>Remote commands &amp; SSH-agent packets</td><td><code>term.remote_control.call()</code>, <code>term.ssh_agent</code></td><td>Explicit terminal permission. Remote control and SSH-agent transport are separate APIs.</td></tr>
+  </tbody></table></div>
+</section>
+
+<section class="section" id="recipes">
+  <p class="section-num">04 / WORKING EXAMPLES</p><h2>From a request to a result.</h2><p class="section-intro">Each example makes support and ownership explicit. Use the reference below for every argument, return type, and source docstring.</p>
+  <article class="recipe"><h3>01 — Discover and read tablet events</h3><p>Aggregate discovery identifies understood selectors. Query the channel for device-related capabilities, then use the reporting mode that the terminal actually grants.</p><div class="code-block"><div class="code-header"><span>PYTHON · tablet input</span><button class="copy" data-copy="tablet-code">Copy</button></div><pre><code id="tablet-code">from hamingjur import Terminal
+from hamingjur.silkie import TabletMode
+
+term = Terminal()
+with term.cbreak():
+    caps = term.silkie.capabilities(timeout=0.5)
+    if caps and caps.supports("tablet-pointer"):
+        mode = TabletMode.TOOLS | TabletMode.TOUCH
+        with term.tablet.enabled(mode) as granted:
+            while granted:
+                key = term.inkey(timeout=0.1)
+                if key == "q":
+                    break
+                if key.tablet is not None:
+                    event = key.tablet
+                    print(event.position, event.pressure, event.tilt)
+    else:
+        print("Tablet reporting: not supported")</code></pre></div><p class="small">Touchpad coordinates are available through <code>touchpad_position</code>; they are normalized values, rather than physical screen pixels. Reporting contexts restore the previous mode on exit.</p></article>
+  <article class="recipe"><h3>02 — Draw an image and release it</h3><p>The adaptive image API fits your source, negotiates formats and transfer media, and waits for an acknowledgement. Keep the source image if you plan to redraw after a resize.</p><div class="code-block"><div class="code-header"><span>PYTHON · requires .[images] and a local photo.png</span><button class="copy" data-copy="image-code">Copy</button></div><pre><code id="image-code">from PIL import Image
+from hamingjur import Terminal
+
+term = Terminal()
+result = None
+with Image.open("photo.png") as source, term.cbreak():
+    try:
+        result = term.graphics.draw(
+            source, x=0, y=0, columns=40, rows=12
+        )
+        term.inkey()
+    finally:
+        if result is not None:
+            term.graphics.send(
+                term.graphics.delete(result.image_id)
+            )</code></pre></div><p class="small">Use pixel <code>width</code>/<code>height</code> or cell <code>columns</code>/<code>rows</code>, never both. Source formats include packed grayscale, RGB565, RGB/RGBA, PNG, and HDR half-float RGBA where supported. GPU surfaces require an application-owned descriptor.</p></article>
+  <article class="recipe"><h3>03 — Send a retained vector scene</h3><p>Vector records describe paths, groups, gradients, clips, pressure strokes, and shaped text. Use <code>patch()</code> to replace or append records in an existing scene.</p><div class="code-block"><div class="code-header"><span>PYTHON · Silkie vector images</span><button class="copy" data-copy="vector-code">Copy</button></div><pre><code id="vector-code">from hamingjur import Terminal, graphics
+
+term = Terminal()
+with term.cbreak():
+    if term.graphics.supports(200):
+        records = [
+            graphics.vector_record(
+                "p", id=1, d="M0,0H240V100H0Z", fill="#183e35"
+            ),
+            graphics.text_record(2, {
+                "text": "Hello, vectors.", "x": 16, "y": 58,
+                "size": 26, "fill": "#c4e6a8"
+            }),
+        ]
+        try:
+            term.graphics.send(graphics.scene(
+                records, image_id=7, width=240, height=100, q=1
+            ))
+            term.inkey()
+        finally:
+            term.graphics.send(graphics.delete(7, q=2))
+    else:
+        print("Vector graphics: not supported")</code></pre></div></article>
+  <article class="recipe"><h3>04 — Keep input and application state separate</h3><p><code>LineEditor</code> handles editing, history, suggestions, grapheme movement, and optional password masking. Your application decides where and when to render.</p><div class="code-block"><div class="code-header"><span>PYTHON · a headless editor in an event loop</span><button class="copy" data-copy="editor-code">Copy</button></div><pre><code id="editor-code">from hamingjur import Terminal, LineEditor, LineHistory
+
+term = Terminal()
+editor = LineEditor(history=LineHistory(), max_width=term.width)
+with term.cbreak():
+    while True:
+        print(editor.render(term, row=0, width=term.width),
+              end="", flush=True)
+        result = editor.feed_key(term.inkey())
+        if result.line is not None:
+            break
+        if result.interrupt or result.eof:
+            break</code></pre></div><p class="small">Feed bracketed-paste contents through <code>insert_text()</code>. For asynchronous applications, use <code>await term.async_inkey()</code> in your own async event loop.</p></article>
+</section>
+
+<section class="section" id="contracts">
+  <p class="section-num">05 / API CONTRACTS</p><h2>Read the reply you received.</h2><p class="section-intro">Query APIs return different objects. This distinction matters when decoding responses or handling unsupported features.</p>
+  <div class="return-grid"><div class="return-item"><code>Terminal.query(sequence, response, timeout)</code><span class="return-type">str | None</span><p>The full matched response string, or <code>None</code>. It is not a regular-expression match object. Parse the returned string with the appropriate decoder.</p></div><div class="return-item"><code>Channel.query(timeout)</code><span class="return-type">ProtocolEvent | None</span><p>A structured Silkie capability report. Inspect <code>fields</code>, <code>integer()</code>, or <code>number()</code>. A selector’s support does not imply attached hardware.</p></div><div class="return-item"><code>Graphics.query(data, ...)</code><span class="return-type">ProtocolEvent | None</span><p>A graphics reply. A successful probe has <code>event.payload == "OK"</code>. <code>supports()</code> turns a format probe into a boolean.</p></div><div class="return-item"><code>Terminal.inkey() / async_inkey()</code><span class="return-type">Keystroke</span><p>A string-compatible key with <code>name</code> and structured <code>protocol_event</code> or <code>tablet</code> properties. Empty input can indicate a timeout.</p></div><div class="return-item"><code>Graphics.draw(source, ...)</code><span class="return-type">DrawnImage | None</span><p>An acknowledged image placement; disabled styling returns <code>None</code>. Upload errors raise, and missing acknowledgements raise <code>TimeoutError</code>.</p></div><div class="return-item"><code>RemoteControl.call(name, payload, ...)</code><span class="return-type">decoded response data</span><p>Returns the terminal’s JSON data. Refusal raises <code>RemoteControlError</code>; a missing complete reply raises <code>TimeoutError</code>. Terminal permission is required.</p></div></div>
+  <ul class="checklist" style="margin-top:30px"><li><strong>Restore modes.</strong> <code>enabled()</code> reads the existing mode, checks granted bits, and restores the previous value in <code>finally</code>. Leave contexts before suspending and re-enter after resuming.</li><li><strong>Own resource lifetimes.</strong> Release images and uploaded font handles. GPU surface allocation stays with your application. File, shared-memory, and direct transports have different lifecycles.</li><li><strong>Serialize shared terminal I/O.</strong> Complete a chunked transmission before starting another command on that protocol. Queries preserve unrelated keyboard input.</li><li><strong>Interpret payloads by protocol.</strong> <code>event.data</code> decodes base64 only where the protocol defines it. Graphics errors and notification activations may carry plain text.</li><li><strong>Preserve complete data.</strong> Image transmissions, event reports, and retained editing state do not have arbitrary total-size caps. Actual wire ranges and packet sizes still apply; allocation failures propagate.</li></ul>
+</section>
+
+<section class="section" id="showcase">
+  <p class="section-num">06 / INTERACTIVE EXAMPLES</p><h2>Test your terminal.</h2><p class="section-intro">The interactive showcase probes the current terminal and puts visual samples, live input counters, and capability status together. Unavailable features are marked <code>not supported</code>.</p>
+  <div class="demo-run"><h3>Run the Silkie showcase</h3><p class="small">From the checkout, with its dependencies installed:</p><div class="code-block"><div class="code-header"><span>SHELL</span><button class="copy" data-copy="showcase-code">Copy</button></div><pre><code id="showcase-code">PYTHONPATH=. .venv/bin/python bin/silkie_showcase.py
+
+# Keep complete events in a JSONL file
+PYTHONPATH=. .venv/bin/python bin/silkie_showcase.py \
+    --events events.jsonl</code></pre></div><div class="keys"><span><kbd>q</kbd>Exit</span><span><kbd>Tab</kbd>Inspect details</span><span><kbd>h</kbd>Haptic tap</span><span><kbd>c</kbd>Clear ink</span><span><kbd>j / k</kbd>Scroll on small screens</span></div><p class="small" style="margin:22px 0 0">A 120 × 30 terminal leaves room for the visual areas. The script adapts to smaller windows and preserves ink on resize. Use <code>--font</code> or <code>--gpu-surface</code> to provide resources for those optional demonstrations.</p></div>
+  <p class="small" style="margin-top:22px">For a dedicated drawing application, try <code>python bin/tablet_canvas.py --mode tiles</code>, <code>--mode vectors</code>, or <code>--mode ink</code> after installation. Visual results depend on terminal support, attached hardware, user permissions, and display settings.</p>
+</section>
+
+<section class="section" id="api">
+  <p class="section-num">07 / SOURCE-DERIVED REFERENCE</p><div class="api-head"><h2>The API, in detail.</h2><span class="small">{{MODULE_COUNT}} modules · {{ENTRY_COUNT}} declarations · v{{VERSION}}</span></div>
+  <p class="section-intro">Search public functions, methods, properties, and classes. Expand an entry for its exact source signature, complete docstring, fields, and source location.</p>
+  <div class="api-toolbar"><div class="search-wrap"><span aria-hidden="true">⌕</span><label class="sr-only" for="api-search">Search API names, signatures and documentation</label><input type="search" id="api-search" placeholder="Search APIs, e.g. query, tablet, draw…" autocomplete="off" spellcheck="false"></div><label class="sr-only" for="module-filter">Filter by module</label><select id="module-filter"><option value="">All modules</option>{{MODULE_OPTIONS}}</select><button class="plain-button" id="reset-search">Reset</button></div>
+  <div class="result-line"><span id="api-count" aria-live="polite">{{ENTRY_COUNT}} declarations across {{MODULE_COUNT}} modules</span><div><button class="plain-button" id="expand-all">Expand visible</button> <button class="plain-button" id="collapse-all">Collapse</button></div></div>
+  <div class="empty" id="api-empty" hidden>No matching APIs. Try another search or reset the module filter.</div>
+  <noscript><p class="note">Search needs JavaScript. All API entries remain available below through native disclosure controls.</p></noscript>
+  <div id="api-reference">{{API_REFERENCE}}</div>
+  <p class="api-info">This reference is generated from the checkout’s public Python declarations, without importing platform-specific modules. Constructor signatures, keyword-only arguments, return annotations, enums, and fields come directly from source. Original docstrings retain reStructuredText notation and examples. Inherited methods live under their defining class; dynamic terminal capabilities such as <code>term.bold_green</code> are resolved at runtime.</p>
+  <p class="api-info">Common exports: <code>hamingjur.Terminal</code>, <code>LineEditor</code>, <code>LineHistory</code>, <code>Transfer</code>, <code>ImageSupport</code>, <code>PreparedImage</code>, <code>DrawnImage</code>, and the <code>graphics</code>, <code>kitty</code>, <code>protocols</code>, and <code>silkie</code> modules. Definitions are linked under their source modules above. The platform selects the terminal implementation on import.</p>
+</section>
+<section class="section" id="contribute">
+  <p class="section-num">08 / OPEN SOURCE</p><h2>Contributing &amp; upstream.</h2>
+  <div class="contribute-grid">
+    <article><h3>Work on Hamingjur</h3><p>Contributions are welcome through GitHub pull requests. The contribution guide covers editable installs, tox, code style, and test coverage. Include a regression test with a bug fix and tests for a new feature.</p><div class="project-links"><a href="https://github.com/adamdeprince/hamingjur" target="_blank" rel="noopener">Browse source ↗</a><a href="https://github.com/adamdeprince/hamingjur/blob/master/CONTRIBUTING.rst" target="_blank" rel="noopener">Contribution guide ↗</a><a href="https://github.com/adamdeprince/hamingjur/issues" target="_blank" rel="noopener">Report an issue ↗</a></div><dl class="project-facts"><div><dt>Maintainer</dt><dd>Adam DePrince</dd></div><div><dt>License</dt><dd><a href="https://github.com/adamdeprince/hamingjur/blob/master/LICENSE" target="_blank" rel="noopener">MIT</a></dd></div><div><dt>Language</dt><dd>Python 3.9+</dd></div></dl></article>
+    <article><h3>Credit where it belongs</h3><p>Hamingjur is an independent fork of <a href="https://github.com/jquast/blessed" target="_blank" rel="noopener">Blessed</a>, building on work by Jeff Quast, Avram Lubkin, and the Blessed community. Blessed was forked from Erik Rose’s <a href="https://github.com/erikrose/blessings" target="_blank" rel="noopener">blessings</a>.</p><p>The MIT license retains the copyright notices for Jeff Quast (2014) and Erik Rose (2011), alongside Adam DePrince’s fork contributions (2026). The portable terminal foundation comes from that shared work.</p><div class="project-links"><a href="https://github.com/jquast/blessed" target="_blank" rel="noopener">Blessed upstream ↗</a><a href="https://github.com/erikrose/blessings" target="_blank" rel="noopener">blessings ↗</a></div></article>
+  </div>
+</section>
+<footer class="footer"><span>Hamingjur · {{VERSION}} · MIT · Adam DePrince and upstream contributors</span><span><a href="https://github.com/adamdeprince/hamingjur/blob/master/LICENSE" target="_blank" rel="noopener">License</a> · <a href="https://github.com/adamdeprince/hamingjur/issues" target="_blank" rel="noopener">Issues</a> · <a href="#overview" class="back-to-top">Back to top ↑</a></span></footer>
+</main>
+</div>
+<div class="notice" id="notice" role="status" hidden></div>
+<script>
+(() => {
+  'use strict';
+  const $ = (selector, root = document) => root.querySelector(selector);
+  const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+  const root = document.documentElement;
+  const themeButton = $('#theme-toggle');
+  function setTheme(theme) {
+    root.dataset.theme = theme;
+    themeButton.setAttribute('aria-label', `Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`);
+    try { localStorage.setItem('hamingjur-docs-theme-v2', theme); } catch (_) { /* File/private mode. */ }
+  }
+  let savedTheme;
+  try { savedTheme = localStorage.getItem('hamingjur-docs-theme-v2'); } catch (_) { /* No persistence. */ }
+  setTheme(savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : 'light');
+  themeButton.addEventListener('click', () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark'));
+
+  const menu = $('#menu-toggle');
+  const sidebar = $('#sidebar');
+  function closeMenu() { sidebar.classList.remove('visible'); menu.setAttribute('aria-expanded', 'false'); }
+  menu.addEventListener('click', () => {
+    const visible = sidebar.classList.toggle('visible');
+    menu.setAttribute('aria-expanded', String(visible));
+  });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeMenu(); });
+  $$('a[href^="#"]', sidebar).forEach(link => link.addEventListener('click', closeMenu));
+
+  const notice = $('#notice');
+  let noticeTimer;
+  function announce(message) {
+    clearTimeout(noticeTimer);
+    notice.textContent = message; notice.hidden = false;
+    noticeTimer = setTimeout(() => { notice.hidden = true; }, 3500);
+  }
+  $$('.copy').forEach(button => button.addEventListener('click', async () => {
+    const code = document.getElementById(button.dataset.copy);
+    if (!code) return;
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(code.textContent);
+      announce('Code copied.');
+    } catch (_) {
+      const selection = window.getSelection();
+      if (selection) {
+        const range = document.createRange(); range.selectNodeContents(code);
+        selection.removeAllRanges(); selection.addRange(range);
+      }
+      announce('Code selected. Use your browser’s copy command.');
+    }
+  }));
+
+  const examples = {
+    text: { code: `from hamingjur import Terminal\n\nterm = Terminal()\nprint(term.bold_green("Hello from Hamingjur."))\n\nwith term.cbreak():\n    key = term.inkey(timeout=1)\n    if key:\n        print(f"You pressed {key!r}")`,
+      lines: ['❯ python hello.py', 'Hello from Hamingjur.', 'Text. Color. Input. A place to begin.'] },
+    graphics: { code: `from hamingjur import Terminal, graphics\n\nterm = Terminal()\nwith term.cbreak():\n    if term.graphics.supports(200):\n        records = [graphics.vector_record(\n            "p", id=1, d="M0,50L100,10L200,50",\n            stroke="#a6e22e", w=3\n        )]\n        term.graphics.send(graphics.scene(\n            records, image_id=7,\n            width=200, height=60, q=1\n        ))`,
+      lines: ['❯ python vectors.py', 'Paths. Gradients. Shaped text.', 'A retained scene, rendered by the terminal.'] },
+    silkie: { code: `from hamingjur import Terminal\nfrom hamingjur.silkie import TabletMode\n\nterm = Terminal()\nwith term.cbreak():\n    caps = term.silkie.capabilities()\n    if caps and caps.supports("tablet-pointer"):\n        with term.tablet.enabled(\n            TabletMode.TOOLS\n        ) as granted:\n            if granted:\n                key = term.inkey()\n                print(key.tablet)`,
+      lines: ['❯ python tablet.py', 'Pen pressure. Tilt. Touch.', 'Discover support. Enable reports. Read events.'] }
+  };
+  const tabs = $$('[data-demo]');
+  function selectDemo(tab, focus = false) {
+    const demo = examples[tab.dataset.demo];
+    tabs.forEach(item => { const selected = item === tab; item.setAttribute('aria-selected', String(selected)); item.tabIndex = selected ? 0 : -1; });
+    $('#demo-code').textContent = demo.code;
+    $('#demo-panel').setAttribute('aria-labelledby', tab.id);
+    const preview = $('#terminal-preview'); preview.replaceChildren();
+    demo.lines.forEach((line, index) => {
+      const span = document.createElement('span'); span.className = index === 0 ? 'prompt' : index === 1 ? 'green' : 'dim'; span.textContent = line;
+      preview.append(span); if (index < demo.lines.length - 1) preview.append(document.createElement('br'));
+    });
+    if (focus) tab.focus();
+  }
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => selectDemo(tab));
+    tab.addEventListener('keydown', event => {
+      let next;
+      if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+      if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+      if (event.key === 'Home') next = 0;
+      if (event.key === 'End') next = tabs.length - 1;
+      if (next !== undefined) { event.preventDefault(); selectDemo(tabs[next], true); }
+    });
+  });
+
+  const search = $('#api-search');
+  const filter = $('#module-filter');
+  const modules = $$('.api-module');
+  const entries = $$('.api-entry');
+  const searchable = new Map(entries.map(entry => [entry, (entry.dataset.name + ' ' + entry.textContent).toLowerCase()]));
+  const total = entries.length;
+  function filterEntries() {
+    const words = search.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    let count = 0, moduleCount = 0;
+    modules.forEach(module => {
+      const matchesModule = !filter.value || filter.value === module.dataset.module;
+      let visibleCount = 0;
+      $$('.api-entry', module).forEach(entry => {
+        const visible = matchesModule && words.every(word => searchable.get(entry).includes(word));
+        entry.hidden = !visible;
+        if (visible) { visibleCount++; count++; }
+      });
+      module.hidden = visibleCount === 0;
+      if (visibleCount) moduleCount++;
+      if ((words.length || filter.value) && visibleCount) module.open = true;
+    });
+    $('#api-count').textContent = `${count} of ${total} declarations · ${moduleCount} modules`;
+    $('#api-empty').hidden = count !== 0;
+  }
+  search.addEventListener('input', filterEntries);
+  filter.addEventListener('change', filterEntries);
+  $('#reset-search').addEventListener('click', () => { search.value = ''; filter.value = ''; filterEntries(); search.focus(); });
+  $('#expand-all').addEventListener('click', () => { modules.filter(m => !m.hidden).forEach(m => { m.open = true; $$('.api-entry', m).filter(e => !e.hidden).forEach(e => { e.open = true; }); }); });
+  $('#collapse-all').addEventListener('click', () => { entries.forEach(e => { e.open = false; }); modules.forEach(m => { m.open = false; }); });
+  function openHash() {
+    let id;
+    try { id = decodeURIComponent(location.hash.slice(1)); } catch (_) { return; }
+    const target = document.getElementById(id);
+    if (!target || (!target.classList.contains('api-entry') && !target.classList.contains('api-module'))) return;
+    search.value = ''; filter.value = ''; filterEntries();
+    let node = target;
+    while (node && node !== document.body) { if (node.tagName === 'DETAILS') node.open = true; node = node.parentElement; }
+    requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
+  }
+  window.addEventListener('hashchange', openHash);
+  document.addEventListener('click', event => {
+    const link = event.target.closest('a[href^="#api-"],a[href^="#module-"]');
+    if (link && link.hash === location.hash) openHash();
+  });
+  filterEntries(); openHash();
+  const sideLinks = $$('nav a[href^="#"]', sidebar);
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(records => {
+      const visible = records.filter(record => record.isIntersecting);
+      if (!visible.length) return;
+      const id = visible[0].target.id;
+      sideLinks.forEach(link => { const active = link.hash === '#' + id; link.classList.toggle('active', active); if (active) link.setAttribute('aria-current', 'location'); else link.removeAttribute('aria-current'); });
+    }, { rootMargin: '-15% 0px -65% 0px' });
+    $$('.section').forEach(section => observer.observe(section));
+  }
+})();
+</script>
+</body>
+</html>

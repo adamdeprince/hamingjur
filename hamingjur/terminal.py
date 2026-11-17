@@ -27,6 +27,7 @@ from typing import (IO,
                     Optional,
                     Generator,
                     SupportsIndex)
+from functools import cached_property
 
 # 3rd party
 import jinxed
@@ -41,6 +42,12 @@ from wcwidth import list_term_programs
 
 # local
 from .color import COLOR_DISTANCE_ALGORITHMS, xterm256gray_from_rgb, xterm256color_from_rgb
+from .kitty import Kitty
+from .shell import Shell
+from .silkie import Silkie, Channel, AgentChannel
+from .silkie import depth as depth_sequence
+from .window import Size, Window
+from .graphics import Graphics
 from .keyboard import (DEFAULT_ESCDELAY,
                        TERMINAL_QUERY_TIMEOUT_SECONDS,
                        Keystroke,
@@ -54,8 +61,10 @@ from .keyboard import (DEFAULT_ESCDELAY,
                        get_keyboard_codes,
                        get_leading_prefixes,
                        get_keyboard_sequences)
+from .resizing import signal_resizes
 from .dec_modes import DecPrivateMode as _DecPrivateMode
 from .dec_modes import DecModeResponse
+from .protocols import FRAME_PREFIXES, integer, incomplete_frame
 from .sequences import Termcap, Sequence
 from .colorspace import RGB_256TABLE, hex_to_rgb, rgb_to_hex, xparse_color
 from .formatters import (COLORS,
@@ -79,6 +88,7 @@ from ._capabilities import (CAPABILITY_DATABASE,
                             TermcapResponse,
                             TextSizingResult,
                             ITerm2Capabilities)
+from .remote_control import RemoteControl
 
 _ALL_XTGETTCAP_CAPS = frozenset({c[0] for c in XTGETTCAP_CAPABILITIES})
 
@@ -161,7 +171,7 @@ _RE_DECRQSS_RESPONSE = re.compile(r'\x1bP([01])\$r([^\x1b]*)\x1b\\')
 _KEYBOARD_READ_SIZE = 4096
 
 
-class Terminal():
+class Terminal:
     """
     An abstraction for color, style, positioning, and input in the terminal.
 
@@ -227,6 +237,178 @@ class Terminal():
     #: DEC Private Mode constants accessible via Terminal.DecPrivateMode or term.DecPrivateMode
     DecPrivateMode = _DecPrivateMode
 
+    def send(self, sequences: Union[str, Iterable[str]]) -> None:
+        """Write terminal commands or streamed packets and flush at completion."""
+        if self.does_styling:
+            for sequence in (sequences,) if isinstance(sequences, str) else sequences:
+                self.stream.write(sequence)
+            self.stream.flush()
+
+    @cached_property
+    def remote_control(self) -> RemoteControl:
+        """Explicit Kitty/Silkie remote control, requiring the terminal's permission."""
+        return RemoteControl(self)
+
+    @cached_property
+    def shell(self) -> Shell:
+        """Working directory and prompt/command integration."""
+        return Shell(self)
+
+    def query(self, sequence: str, response: str,
+              timeout: Optional[float] = TERMINAL_QUERY_TIMEOUT_SECONDS) -> Optional[str]:
+        """Query a protocol with a response regex, preserving unrelated keyboard input."""
+        match = self._query_with_boundary(sequence, re.compile(response), timeout)
+        return match.group() if match else None
+
+    @cached_property
+    def window(self) -> Window:
+        """Window geometry, sizing requests, screen queries, and title stack."""
+        return Window(self)
+
+    @property
+    def cell_width(self) -> int:
+        """Physical pixels per cell horizontally, or -1 if unavailable."""
+        return self.get_cell_height_and_width()[1]
+
+    @property
+    def cell_height(self) -> int:
+        """Physical pixels per cell vertically, or -1 if unavailable."""
+        return self.get_cell_height_and_width()[0]
+
+    def get_cell_size(self, timeout: Optional[float] = TERMINAL_QUERY_TIMEOUT_SECONDS,
+                      *, force: bool = False) -> Optional[Size]:
+        """Return named physical pixel dimensions for a cell, or None if unavailable."""
+        return self.window.cell_size(timeout, force=force)
+
+    def request_size(self, *, columns: Optional[int] = None, rows: Optional[int] = None,
+                     width: Optional[int] = None, height: Optional[int] = None) -> None:
+        """Request text-area cells or pixels; the terminal may refuse the preference."""
+        self.window.request_size(columns=columns, rows=rows, width=width, height=height)
+
+    @property
+    def tablet(self) -> Channel:
+        """Pen, touch, tablet-pad, and tool-action input."""
+        return self.silkie.tablet
+
+    @property
+    def scroll(self) -> Channel:
+        """Smooth scrolling input."""
+        return self.silkie.scroll
+
+    @property
+    def gesture(self) -> Channel:
+        """Trackpad and touchscreen gestures."""
+        return self.silkie.gesture
+
+    @property
+    def haptic(self) -> Channel:
+        """Device and pointer haptic feedback."""
+        return self.silkie.haptic
+
+    @property
+    def ink(self) -> Channel:
+        """Terminal-local pen drawing."""
+        return self.silkie.ink
+
+    @property
+    def font(self) -> Channel:
+        """Font selection and font state."""
+        return self.silkie.font
+
+    @property
+    def display(self) -> Channel:
+        """Display capabilities and change reporting."""
+        return self.silkie.display
+
+    @property
+    def latency(self) -> Channel:
+        """Low-latency rendering control."""
+        return self.silkie.latency
+
+    @property
+    def frame(self) -> Channel:
+        """Frame presentation timing."""
+        return self.silkie.frame
+
+    @property
+    def ssh_agent(self) -> AgentChannel:
+        """Explicit SSH-agent queries and packet exchanges over the terminal."""
+        return self.silkie.ssh_agent
+
+    def depth(self, millidegrees: Optional[int] = None, *, pixels: Optional[float] = None,
+              phase: Optional[float] = None) -> FormattingString:
+        """Style stereo text depth/phase; calling the style resets both after the text."""
+        sequence = depth_sequence(millidegrees, pixels=pixels, phase=phase)
+        if not self.does_styling:
+            return NullCallableString()
+        return FormattingString(sequence, depth_sequence())
+
+    @cached_property
+    def kitty(self) -> Kitty:
+        """Kitty protocol output and restoring contexts."""
+        return Kitty(self)
+
+    @cached_property
+    def silkie(self) -> Silkie:
+        """Silkie capability discovery, input, typography, ink and timing channels."""
+        return Silkie(self)
+
+    @cached_property
+    def graphics(self) -> Graphics:
+        """Streaming image/scene commands and capability/service queries."""
+        return Graphics(self)
+
+    def _protocol_style(self, sequence: str) -> Union[FormattingString, NullCallableString]:
+        if not self.does_styling:
+            return NullCallableString()
+        return FormattingString(sequence, self.normal)
+
+    def foreground_brightness(self, percent: int = 100) -> FormattingString:
+        """Set HDR foreground brightness as a percentage of SDR white."""
+        return self._protocol_style(f'\x1b[56:{integer(percent, "percent", 0, 1675)}m')
+
+    def background_brightness(self, percent: int = 100) -> FormattingString:
+        """Set HDR background brightness as a percentage of SDR white."""
+        return self._protocol_style(f'\x1b[57:{integer(percent, "percent", 0, 1675)}m')
+
+    def background_alpha(self, percent: int = 100) -> FormattingString:
+        """Set cell background opacity (0 transparent, 100 opaque)."""
+        return self._protocol_style(f'\x1b[70:{integer(percent, "percent", 0, 100)}m')
+
+    def color_gamut(self, red: int, green: int, blue: int, *, gamut: int = 0,
+                    background: bool = False) -> FormattingString:
+        """Select an RGB color in sRGB (0), Display P3 (1), or Rec2020 (2)."""
+        values = [integer(value, 'RGB component', 0, 255) for value in (red, green, blue)]
+        integer(gamut, 'gamut', 0, 2)
+        return self._protocol_style(f'\x1b[{48 if background else 38}:2:{gamut}:'
+                                    + ':'.join(map(str, values)) + 'm')
+
+    def underline_style(self, style: int = 1) -> FormattingString:
+        """Set underline style: off, single, double, curly, dotted or dashed (0–5)."""
+        return self._protocol_style(f'\x1b[4:{integer(style, "style", 0, 5)}m')
+
+    def underline_color(self, red: int, green: int, blue: int) -> FormattingString:
+        """Set the independent underline color using RGB components."""
+        values = [integer(value, 'RGB component', 0, 255) for value in (red, green, blue)]
+        return self._protocol_style('\x1b[58:2::' + ':'.join(map(str, values)) + 'm')
+
+    def unscroll(self, lines: int = 1) -> str:
+        """Bring lines back from scrollback using Kitty's SD extension."""
+        sequence = f'\x1b[{integer(lines, "lines", 1)}+T'
+        return sequence if self.does_styling else ''
+
+    def clear_to_scrollback(self) -> str:
+        """Move the screen's text and images into scrollback, then clear it."""
+        return '\x1b[22J' if self.does_styling else ''
+
+    def reset_bold(self) -> str:
+        """Reset bold independently of faint."""
+        return '\x1b[221m' if self.does_styling else ''
+
+    def reset_faint(self) -> str:
+        """Reset faint independently of bold."""
+        return '\x1b[222m' if self.does_styling else ''
+
     def __init__(self,
                  kind: Optional[str] = None,
                  stream: Optional[IO[str]] = None,
@@ -272,10 +454,12 @@ class Terminal():
 
         :arg str kind_fallback: Terminal kind to use as fallback when the requested ``kind`` is not
             found in jinxed_ virtual terminfo database.  Defaults to ``'xterm-256color'`` which is
-            well supported for all capabilities used by blessed on all modern terminals.
+            well supported for all capabilities used by hamingjur on all modern terminals.
 
         .. _jinxed: https://github.com/rockhopper-Technologies/jinxed
         """
+        self._resize_read_fd: Optional[int] = None
+        self._pending_resize: Optional[str] = None
         self.errors = [
             f'parameters: kind={kind!r}, stream={stream!r}, force_styling={force_styling!r}, '
             f'kind_fallback: {kind_fallback!r}, _xtgettcap_data: {_xtgettcap_data!r}'
@@ -414,7 +598,7 @@ class Terminal():
 
     def __init_termcap_kind(self, kind_preferred: Optional[str], kind_fallback: str) -> None:
         """Determine terminal 'kind' jinxed.setupterm() capability database."""
-        # Previous to 1.40, blessed could fallback to 'dumb' when it could not find a meaningful
+        # Previous to 1.40, hamingjur could fallback to 'dumb' when it could not find a meaningful
         # type, but now kind_fallback='xterm-256color' is always guaranteed available and used
         # instead of 'dumb'.  I believe now xterm-256 sequences are safe as unknown fallback for
         # the year 2026. Use NO_COLOR or force_styling=False to force the same result.
@@ -1020,6 +1204,7 @@ class Terminal():
                 self, _RE_CPR_BOUNDARY.pattern, timeout)
 
             if cpr_match is None:
+                self.ungetch(data)
                 return None
 
             data = data[:cpr_match.start()] + data[cpr_match.end():]
@@ -1143,7 +1328,7 @@ class Terminal():
             # CPR always reports 1-based coordinates (row 1, column 1).  All terminals published by
             # jinxed use %i in their u6 string (the standard behavior), so we unconditionally
             # convert to 0-based.  A pedantic impl would check for %i in the u6 capability, but no
-            # terminal supoprted by blessed/jinxed uses 0-index, it was an ANSI standard, after all.
+            # terminal supported by Hamingjur/jinxed uses 0-index, as the ANSI standard requires.
             return tuple(max(0, int(val) - 1) for val in match.groups())
 
         # Return an illegal value (-1) rather than a custom exception, developers should
@@ -1244,7 +1429,7 @@ class Terminal():
             timeout or when :attr:`is_a_tty` is False.
 
         Convenience wrapper combining :meth:`get_fgcolor` and
-        :func:`~blessed.colorspace.rgb_to_hex`.
+        :func:`~hamingjur.colorspace.rgb_to_hex`.
         """
         rgb = self.get_fgcolor(timeout=timeout, bits=8)
         if rgb == (-1, -1, -1):
@@ -1265,7 +1450,7 @@ class Terminal():
             timeout or when :attr:`is_a_tty` is False.
 
         Convenience wrapper combining :meth:`get_bgcolor` and
-        :func:`~blessed.colorspace.rgb_to_hex`.
+        :func:`~hamingjur.colorspace.rgb_to_hex`.
         """
         rgb = self.get_bgcolor(timeout=timeout, bits=8)
         if rgb == (-1, -1, -1):
@@ -2062,7 +2247,7 @@ class Terminal():
             covered may still fail to draw, and one with uncovered codepoints may draw
             perfectly.  The text presentation watch, ``'⌚︎'``, renders correctly
             on terminals whose font has no glyph for ``U+FE0E``, as no font does.
-            Deciding what will render is a heuristic built on this answer, and blessed
+            Deciding what will render is a heuristic built on this answer, and hamingjur
             does not make it for you: see :ref:`detect-tofus.py` for one such heuristic.
 
         .. seealso::
@@ -2254,7 +2439,7 @@ class Terminal():
             '\x1b_Gi=31,s=1,v=1,a=q,t=d,f=24;AAAA\x1b\\',
             _RE_KITTY_GRAPHICS_RESPONSE,
             timeout)
-        supported = match is not None and 'OK' in match.group(1)
+        supported = match is not None and match.group(1) == 'OK'
         self._kitty_graphics_supported = supported
         return supported
 
@@ -2398,7 +2583,7 @@ class Terminal():
             return self._kitty_notifications_supported
 
         match = self._query_with_boundary(
-            '\x1b]99;i=blessed:p=?\x1b\\',
+            '\x1b]99;i=hamingjur:p=?\x1b\\',
             _RE_KITTY_NOTIFICATIONS_RESPONSE,
             timeout)
         supported = match is not None
@@ -2622,7 +2807,7 @@ class Terminal():
         Results are not cached -- DECRQSS queries runtime state that
         may change between calls (cursor style, margins, SGR, etc.).
 
-        Use :class:`~blessed.Terminal.Decrqss` for setting
+        Use :class:`~hamingjur.Terminal.Decrqss` for setting
         identifiers::
 
             term = Terminal()
@@ -2867,7 +3052,7 @@ class Terminal():
     def notify_on_resize(
             self, timeout: float = TERMINAL_QUERY_TIMEOUT_SECONDS) -> Generator[None, None, None]:
         """
-        Context manager for enabling in-band window resize notifications.
+        Receive resize events through inline reports or a scoped SIGWINCH fallback.
 
         When enabled, the terminal will automatically send resize events as in-band sequences
         whenever the window size changes. These events are received by :meth:`inkey` as
@@ -2877,9 +3062,9 @@ class Terminal():
         standard :attr:`height`, :attr:`width`, :attr:`pixel_height`, and :attr:`pixel_width`
         properties without additional ioctl system calls.
 
-        This is the preferred method for handling terminal resizes as it avoids the race
-        conditions and signal handling complexity of SIGWINCH on Unix systems, and provides
-        a consistent cross-platform API.
+        When inline reporting is unavailable on Unix, a pipe wakes both inkey() and
+        async_inkey() on SIGWINCH and synthesizes the same RESIZE_EVENT. Enter the signal
+        fallback on the main thread. The previous signal handler is chained and restored.
 
         :arg float timeout: Timeout for mode query (default 1.0s)
 
@@ -2896,10 +3081,25 @@ class Terminal():
         """
         try:
             with self.dec_modes_enabled(_DecPrivateMode.IN_BAND_WINDOW_RESIZE, timeout=timeout):
-                yield
+                response = self._dec_mode_cache.get(_DecPrivateMode.IN_BAND_WINDOW_RESIZE, 0)
+                if response in (DecModeResponse.SET, DecModeResponse.PERMANENTLY_SET):
+                    yield
+                else:
+                    # Synthetic reports use the same parser as terminal-generated reports.
+                    previous = self._dec_mode_cache.get(_DecPrivateMode.IN_BAND_WINDOW_RESIZE)
+                    with signal_resizes(self):
+                        mode = _DecPrivateMode.IN_BAND_WINDOW_RESIZE
+                        self._dec_mode_cache[mode] = DecModeResponse.SET
+                        try:
+                            yield
+                        finally:
+                            if previous is None:
+                                self._dec_mode_cache.pop(mode, None)
+                            else:
+                                self._dec_mode_cache[mode] = previous
         finally:
             # Clear the cache when exiting the context
-            self._preferred_size_cache = None
+            self.invalidate_geometry()
 
     def _dec_mode_set_enabled(self, *modes: Union[int, _DecPrivateMode]) -> None:
         """
@@ -3121,9 +3321,24 @@ class Terminal():
         if self._xtwinops_cell_cache is not None and not force:
             return self._xtwinops_cell_cache
 
+        size = self._preferred_size_cache
+        if not force and size is not None:
+            dimensions = (size.ws_col, size.ws_row, size.ws_xpixel, size.ws_ypixel)
+            if (all(dimensions) and size.ws_xpixel % size.ws_col == 0
+                    and size.ws_ypixel % size.ws_row == 0):
+                self._xtwinops_cell_cache = (size.ws_ypixel // size.ws_row,
+                                             size.ws_xpixel // size.ws_col)
+                return self._xtwinops_cell_cache
+
         result = self._get_xtwinops_cell_size(timeout)
         self._xtwinops_cell_cache = result
         return result
+
+    def invalidate_geometry(self) -> None:
+        """Forget cached cell/window pixels after a resize, font change, or reconnection."""
+        self._xtwinops_cell_cache = None
+        self._xtwinops_cache = None
+        self._preferred_size_cache = None
 
     def _get_xtwinops_window_size(self, timeout: Optional[float]) -> Tuple[int, int]:
         # Query XTWINOPS 14t for window size: ESC[14t
@@ -3548,7 +3763,7 @@ class Terminal():
         If the terminal does not support RGB color, the nearest supported
         color will be determined using :py:attr:`color_distance_algorithm`.
 
-        See :func:`~blessed.colorspace.hex_to_rgb` for supported hex formats.
+        See :func:`~hamingjur.colorspace.hex_to_rgb` for supported hex formats.
         """
         return self.color_rgb(*hex_to_rgb(hex_color))
 
@@ -3596,7 +3811,7 @@ class Terminal():
         If the terminal does not support RGB color, the nearest supported
         color will be determined using :py:attr:`color_distance_algorithm`.
 
-        See :func:`~blessed.colorspace.hex_to_rgb` for supported hex formats.
+        See :func:`~hamingjur.colorspace.hex_to_rgb` for supported hex formats.
         """
         return self.on_color_rgb(*hex_to_rgb(hex_color))
 
@@ -3694,10 +3909,14 @@ class Terminal():
         :param str url_id: Optional 'id'.
         :rtype: str
         :returns: String of ``text`` as a hyperlink to ``url``.
+
+        :raises ValueError: If a URL or ID contains control characters or an ID contains delimiters.
         """
-        assert len(url) < 2000, (len(url), url)
+        if any(ord(char) < 32 or 0x7f <= ord(char) < 0xa0 for char in url + str(url_id)):
+            raise ValueError('Hyperlink URLs and IDs cannot contain terminal control characters')
         if url_id:
-            assert len(str(url_id)) < 250, (len(str(url_id)), url_id)
+            if ':' in str(url_id) or ';' in str(url_id):
+                raise ValueError('Hyperlink IDs cannot contain parameter delimiters')
             params = f'id={url_id}'
         else:
             params = ''
@@ -4211,6 +4430,8 @@ class Terminal():
         Implementers of alternate input stream methods should override
         this method.
         """
+        if self._read_signal_resize():
+            return ''
         assert self._keyboard_fd is not None
         byte = os.read(self._keyboard_fd, 1)
         if not byte:
@@ -4222,6 +4443,42 @@ class Terminal():
             return chr(byte[0])
         # Use UTF-8 incremental decoder for multi-byte sequences
         return self._keyboard_decoder.decode(byte, final=False)
+
+    def _read_signal_resize(self) -> bool:
+        """Drain a wakeup and record its current size separately from keyboard bytes."""
+        if self._resize_read_fd is None:
+            return False
+        try:
+            os.read(self._resize_read_fd, 4096)  # Wakeup batch, not retained application data.
+        except BlockingIOError:
+            return False
+        self.invalidate_geometry()
+        size = self._height_and_width()
+        self._pending_resize = (f'\x1b[48;{size.ws_row};{size.ws_col};'
+                                f'{size.ws_ypixel or 0};{size.ws_xpixel or 0}t')
+        return True
+
+    def _take_signal_resize(self, buffered: str) -> Optional[Keystroke]:
+        """Deliver resize independently, preserving even an unfinished input protocol."""
+        if self._pending_resize is None:
+            return None
+        sequence, self._pending_resize = self._pending_resize, None
+        self.ungetch(buffered)
+        result = resolve_sequence(sequence, self._keymap, self._keycodes,
+                                  self._keymap_prefixes, dec_mode_cache=self._dec_mode_cache)
+        self._observe_input(result)
+        return result
+
+    def _observe_input(self, key: Keystroke) -> None:
+        """Refresh image/display state and geometry for both input readers."""
+        if 'graphics' in self.__dict__:
+            self.graphics.observe(key.protocol_event)
+        if key._mode == _DecPrivateMode.IN_BAND_WINDOW_RESIZE:  # pylint: disable=protected-access
+            event = key._mode_values  # pylint: disable=protected-access
+            assert isinstance(event, ResizeEvent)
+            self.invalidate_geometry()
+            self._preferred_size_cache = WINSZ(event.height_chars, event.width_chars,
+                                               event.width_pixels, event.height_pixels)
 
     def ungetch(self, text: str) -> None:
         """
@@ -4252,16 +4509,17 @@ class Terminal():
         if self._keyboard_eof:
             return False
 
-        if self._keyboard_fd is None:
+        if self._keyboard_fd is None and self._resize_read_fd is None:
             return False
 
-        ready_r = [None, ]
-        check_r = [self._keyboard_fd]
+        ready_r: List[int] = []
+        check_r = [descriptor for descriptor in (self._keyboard_fd, self._resize_read_fd)
+                   if descriptor is not None]
 
         if HAS_TTY:
             ready_r, _, _ = select.select(check_r, [], [], timeout)
 
-        return False if self._keyboard_fd is None else check_r == ready_r
+        return bool(ready_r) if HAS_TTY else False
 
     @contextlib.contextmanager
     def cbreak(self) -> Generator[None, None, None]:
@@ -4413,7 +4671,7 @@ class Terminal():
         # bytes rather than one for each.  This supports keyboard._read_until(), where
         # the reply to a terminal query may run to many kilobytes.  Legacy mouse
         # sequences are decoded by _decode_keyboard(), wherever they occur in the input.
-        if self._keyboard_fd is None:
+        if self._keyboard_fd is None and self._resize_read_fd is None:
             return ''
         ucs = ''
         # Any trailing bytes held back as a partial '\x1b[M' prefix: a mouse report may
@@ -4421,6 +4679,10 @@ class Terminal():
         # still be decoded as latin-1.
         carry = b''
         while self.kbhit(timeout=0):
+            if self._read_signal_resize():
+                continue
+            if self._keyboard_fd is None:
+                break
             try:
                 data = os.read(self._keyboard_fd, _KEYBOARD_READ_SIZE)
             except OSError:
@@ -4470,6 +4732,8 @@ class Terminal():
         # matches (exact), builds toward (partial), or extends beyond a known prefix
         if not text:
             return False
+        if incomplete_frame(text) or any(prefix.startswith(text) for prefix in FRAME_PREFIXES):
+            return True
         return (text in self._keymap_prefixes or
                 any(text.startswith(p) for p in self._keymap_prefixes) or
                 any(p.startswith(text) for p in self._keymap_prefixes))
@@ -4534,9 +4798,12 @@ class Terminal():
 
         _`ncurses(3)`: https://www.man7.org/linux/man-pages/man3/ncurses.3x.html
         """
-        # pylint: disable=missing-raises-doc
+        # pylint: disable=missing-raises-doc,too-complex
         stime = time.time()
         ucs = self.flushinp()
+        resize = self._take_signal_resize(ucs)
+        if resize is not None:
+            return resize
 
         # decode buffered keystroke, if any
         ks = resolve_sequence(ucs, self._keymap, self._keycodes, self._keymap_prefixes,
@@ -4553,6 +4820,10 @@ class Terminal():
             # and all other immediately available bytes
             while self.kbhit(timeout=0):
                 ucs += self.getch(decode_latin1=ucs.startswith('\x1b[M'))
+
+            resize = self._take_signal_resize(ucs)
+            if resize is not None:
+                return resize
 
             # and then resolve for sequence
             ks = resolve_sequence(ucs, self._keymap, self._keycodes, self._keymap_prefixes,
@@ -4572,12 +4843,16 @@ class Terminal():
         #
         # Only bare escape ('\x1b') needs escape delay to distinguish from sequences.
         # Kitty's disambiguated escape ('\x1b[27u') already resolves with len > 1.
-        if ks.code == self.KEY_ESCAPE and len(ks) == 1:
+        resolving_escape = ks.code == self.KEY_ESCAPE and len(ks) == 1
+        if resolving_escape:
             esctime = time.time()
             while (ks.code == self.KEY_ESCAPE
                    and self._is_incomplete_keystroke(ucs)
                    and self.kbhit(timeout=_time_left(esctime, esc_delay))):
                 ucs += self.getch(decode_latin1=ucs.startswith('\x1b[M'))
+                resize = self._take_signal_resize(ucs)
+                if resize is not None:
+                    return resize
                 # re-check 'final' after reading more bytes
                 final = bool(ucs) and not self._is_incomplete_keystroke(ucs)
                 ks = resolve_sequence(ucs, self._keymap, self._keycodes, self._keymap_prefixes,
@@ -4591,6 +4866,15 @@ class Terminal():
                                       final=True, dec_mode_cache=self._dec_mode_cache,
                                       capture_cpr=capture_cpr)
 
+        # Once a string protocol is identified, its payload is not subject to
+        # escape-key disambiguation. Await it using the caller's remaining timeout.
+        if resolving_escape and not ks and incomplete_frame(ucs):
+            self.ungetch(ucs)
+            if _time_left(stime, timeout) == 0:
+                return ks
+            return self.inkey(timeout=_time_left(stime, timeout),
+                              esc_delay=esc_delay, capture_cpr=capture_cpr)
+
         # buffer any remaining text received
         self.ungetch(ucs[len(ks):])
 
@@ -4603,21 +4887,13 @@ class Terminal():
             return self.inkey(timeout=_time_left(stime, timeout),
                               esc_delay=esc_delay, capture_cpr=capture_cpr)
 
-        # Update preferred size cache if this is a resize event
-        if ks._mode == _DecPrivateMode.IN_BAND_WINDOW_RESIZE:  # pylint: disable=protected-access
-            event_vals = ks._mode_values  # pylint: disable=protected-access
-            assert isinstance(event_vals, ResizeEvent)
-            self._preferred_size_cache = WINSZ(
-                ws_row=event_vals.height_chars,
-                ws_col=event_vals.width_chars,
-                ws_xpixel=event_vals.width_pixels,
-                ws_ypixel=event_vals.height_pixels)
+        self._observe_input(ks)
 
         # EOFError is not reachable through normal use, it is provided only for the special case of
         # a derived "not a tty" implementations, like a serial, telnet, or ssh service where
         # _keyboard_fd is connected to a pipe or socket or StreamIO and not a terminal keyboard,
         # and, that derived implementation does not wish to test the protocol's EOF methods, but
-        # to depend on blessed's base class for throwing EOFError to detect such a condition.
+        # to depend on hamingjur's base class for throwing EOFError to detect such a condition.
         #
         # https://github.com/jquast/blessed/issues/370 it *should* be harmless to host this code
         # for this situation, as EOFError is not reachable on an interactive terminal in raw or
@@ -4657,12 +4933,15 @@ class Terminal():
         :returns: :class:`~.Keystroke`, which may be empty (``''``) if
             ``timeout`` is specified and keystroke is not received.
         """
-        # pylint: disable=too-complex,too-many-branches
+        # pylint: disable=too-complex,too-many-branches,too-many-return-statements
         loop = asyncio.get_running_loop()
         stime = time.time()
 
         # drain keyboard buffer (non-blocking)
         ucs = self.flushinp()
+        resize = self._take_signal_resize(ucs)
+        if resize is not None:
+            return resize
 
         # resolve any buffered keystroke
         ks = resolve_sequence(ucs, self._keymap, self._keycodes,
@@ -4672,9 +4951,13 @@ class Terminal():
 
         # read bytes until a complete keystroke is resolved
         while not ks:
-            byte = await self._async_read_byte(loop, timeout)
+            byte = await self._async_read_byte(loop, _time_left(stime, timeout))
+            resize = self._take_signal_resize(ucs)
+            if resize is not None:
+                return resize
             if byte is None:
-                # timeout expired with no input
+                # Keep unfinished string protocols for the next read.
+                self.ungetch(ucs)
                 return Keystroke()
             decode_latin1 = ucs.startswith('\x1b[M')
             if decode_latin1:
@@ -4686,16 +4969,24 @@ class Terminal():
             while self.kbhit(timeout=0):
                 ucs += self.getch(decode_latin1=ucs.startswith('\x1b[M'))
 
+            resize = self._take_signal_resize(ucs)
+            if resize is not None:
+                return resize
+
             ks = resolve_sequence(ucs, self._keymap, self._keycodes,
                                   self._keymap_prefixes, final=False,
                                   dec_mode_cache=self._dec_mode_cache,
                                   capture_cpr=capture_cpr)
 
         # escape key disambiguation: wait esc_delay for more bytes
-        if ks.code == self.KEY_ESCAPE and len(ks) == 1:
+        resolving_escape = ks.code == self.KEY_ESCAPE and len(ks) == 1
+        if resolving_escape:
             while (ks.code == self.KEY_ESCAPE
                    and self._is_incomplete_keystroke(ucs)):
                 byte = await self._async_read_byte(loop, esc_delay)
+                resize = self._take_signal_resize(ucs)
+                if resize is not None:
+                    return resize
                 if byte is None:
                     break
                 decode_latin1 = ucs.startswith('\x1b[M')
@@ -4707,6 +4998,9 @@ class Terminal():
                 while self.kbhit(timeout=0):
                     ucs += self.getch(
                         decode_latin1=ucs.startswith('\x1b[M'))
+                resize = self._take_signal_resize(ucs)
+                if resize is not None:
+                    return resize
                 final = bool(ucs) and not self._is_incomplete_keystroke(ucs)
                 ks = resolve_sequence(
                     ucs, self._keymap, self._keycodes,
@@ -4721,6 +5015,13 @@ class Terminal():
                     dec_mode_cache=self._dec_mode_cache,
                     capture_cpr=capture_cpr)
 
+        if resolving_escape and not ks and incomplete_frame(ucs):
+            self.ungetch(ucs)
+            if _time_left(stime, timeout) == 0:
+                return ks
+            return await self.async_inkey(timeout=_time_left(stime, timeout),
+                                          esc_delay=esc_delay, capture_cpr=capture_cpr)
+
         # buffer any remaining text
         self.ungetch(ucs[len(ks):])
 
@@ -4729,15 +5030,7 @@ class Terminal():
             return await self.async_inkey(timeout=_time_left(stime, timeout),
                                           esc_delay=esc_delay, capture_cpr=capture_cpr)
 
-        # update preferred size cache if this is a resize event
-        if ks._mode == _DecPrivateMode.IN_BAND_WINDOW_RESIZE:  # pylint: disable=protected-access
-            event_vals = ks._mode_values  # pylint: disable=protected-access
-            assert isinstance(event_vals, ResizeEvent)
-            self._preferred_size_cache = WINSZ(
-                ws_row=event_vals.height_chars,
-                ws_col=event_vals.width_chars,
-                ws_xpixel=event_vals.width_pixels,
-                ws_ypixel=event_vals.height_pixels)
+        self._observe_input(ks)
 
         return ks
 
@@ -4753,16 +5046,22 @@ class Terminal():
         :arg timeout: Seconds to wait, or None for indefinite.
         :returns: A single byte, or None on timeout.
         """
-        if self._keyboard_fd is None:
+        # Readiness callbacks share timeout/cleanup state for keyboard and resize descriptors.
+        # pylint: disable=too-complex
+        if self._keyboard_fd is None and self._resize_read_fd is None:
             raise RuntimeError(
                 "async_inkey requires a keyboard file descriptor")
         fut: asyncio.Future[bytes] = loop.create_future()
         timed_out = False
 
-        def _on_readable() -> None:
+        def _on_readable(descriptor: int) -> None:
             if not fut.done():
                 try:
-                    data = os.read(self._keyboard_fd, 1)
+                    if descriptor == self._resize_read_fd:
+                        self._read_signal_resize()
+                        data = b''
+                    else:
+                        data = os.read(descriptor, 1)
                     fut.set_result(data)
                 except OSError as exc:
                     fut.set_exception(exc)
@@ -4773,14 +5072,18 @@ class Terminal():
                 timed_out = True
                 fut.set_result(b"")
 
-        loop.add_reader(self._keyboard_fd, _on_readable)
+        descriptors = [descriptor for descriptor in (self._keyboard_fd, self._resize_read_fd)
+                       if descriptor is not None]
+        for descriptor in descriptors:
+            loop.add_reader(descriptor, _on_readable, descriptor)
         handle = loop.call_later(timeout, _on_timeout) if timeout is not None else None
         try:
             data = await fut
         finally:
             if handle is not None:
                 handle.cancel()
-            loop.remove_reader(self._keyboard_fd)
+            for descriptor in descriptors:
+                loop.remove_reader(descriptor)
         if timed_out:
             return None
         return data

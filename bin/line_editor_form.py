@@ -2,8 +2,8 @@
 """Line editor demo with clipboard, bracketed paste, history, and scrolling."""
 from functools import partial
 
-from blessed import Terminal
-from blessed.line_editor import LineEditor, LineHistory, LineEditResult
+from hamingjur import Terminal
+from hamingjur.line_editor import LineEditor, LineHistory, LineEditResult
 
 term = Terminal()
 history = LineHistory()

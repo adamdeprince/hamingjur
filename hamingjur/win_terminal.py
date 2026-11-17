@@ -362,7 +362,7 @@ class Terminal(_Terminal):
         ``MOUSE_*`` names.
 
         Accepts the same keyword arguments as
-        :meth:`~blessed.terminal.Terminal.mouse_enabled`.
+        :meth:`~hamingjur.terminal.Terminal.mouse_enabled`.
         """
         if super().does_mouse(clicks=clicks, report_pixels=report_pixels,
                               report_drag=report_drag,
@@ -439,7 +439,7 @@ class Terminal(_Terminal):
         so the native fallback is currently always used.
 
         Accepts the same keyword arguments as
-        :meth:`~blessed.terminal.Terminal.notify_on_resize`.
+        :meth:`~hamingjur.terminal.Terminal.notify_on_resize`.
         """
         if super().does_inband_resize(timeout=timeout):
             with super().notify_on_resize(timeout=timeout):
@@ -464,7 +464,7 @@ class Terminal(_Terminal):
             self._event_buf.clear()
             del self._dec_mode_cache[
                 _DecPrivateMode.IN_BAND_WINDOW_RESIZE]
-            self._preferred_size_cache = None
+            self.invalidate_geometry()
             win32.set_console_mode(filehandle, save_mode)
 
     def does_inband_resize(self, timeout: float = TERMINAL_QUERY_TIMEOUT_SECONDS) -> bool:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Query terminal foreground and background colors."""
-from blessed import Terminal
+from hamingjur import Terminal
 
 term = Terminal()
 

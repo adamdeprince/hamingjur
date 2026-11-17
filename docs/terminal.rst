@@ -4,14 +4,14 @@ Terminal
 .. image:: https://dxtz6bzwq9sxx.cloudfront.net/demo_terminal_walkthrough.gif
     :alt: A visual example of the below interaction with the Terminal class, in IPython.
 
-Blessed provides just **one** top-level object: :class:`~.Terminal`.  Instantiating a
+Hamingjur provides just **one** top-level object: :class:`~.Terminal`.  Instantiating a
 :class:`~.Terminal` figures out whether you're on a terminal at all and, if so, does any necessary
 setup:
 
-    >>> import blessed
-    >>> term = blessed.Terminal()
+    >>> import hamingjur
+    >>> term = hamingjur.Terminal()
 
-This is the only object, named ``term`` here, that you should need from blessed, for all of the
+This is the only object, named ``term`` here, that you should need from hamingjur, for all of the
 remaining examples in our documentation.
 
 You can proceed to ask it all sorts of things about the terminal, such as its size:
@@ -55,7 +55,7 @@ used, but have no effect. For example, ``blink`` only works on a few terminals, 
 Capability Resolution Order
 ---------------------------
 
-At time of :class:`Terminal()` initialization, Blessed tries terminal the terminal kind
+At time of :class:`Terminal()` initialization, Hamingjur tries terminal the terminal kind
 automatically.
 
 1. **'kind'** parameter: an explicit ``kind`` to :class:`~.Terminal` is used first, defaults to
@@ -82,7 +82,7 @@ This compound notation comes in handy for users & configuration to customize you
 Clearing The Screen
 -------------------
 
-Blessed provides syntactic sugar over some screen-clearing capabilities:
+Hamingjur provides syntactic sugar over some screen-clearing capabilities:
 
 ``clear``
   Clear the whole screen.
@@ -108,8 +108,8 @@ Maybe you haven't noticed, because it's a recent addition to terminal emulators,
 that they can now support hyperlinks, like to HTML, or even ``file://`` URLs, which
 allows creating clickable links of text.
 
-    >>> print(f"blessed {term.link('https://blessed.readthedocs.org', 'documentation')}")
-    blessed documentation
+    >>> print(f"hamingjur {term.link('https://github.com/adamdeprince/hamingjur', 'documentation')}")
+    hamingjur documentation
 
 Hover your cursor over ``documentation``, and it should highlight as a clickable URL.
 
@@ -282,7 +282,7 @@ Copying to Clipboard
 
 Use :meth:`~.Terminal.clipboard_copy` to copy text to the system clipboard:
 
-    >>> term.clipboard_copy('Hello from blessed!')
+    >>> term.clipboard_copy('Hello from hamingjur!')
 
 Most modern terminals accept clipboard writes without any user prompt, even
 when clipboard reads are restricted. No detection query is needed for
@@ -409,7 +409,7 @@ Example program to display terminal version information:
 Styles
 ------
 
-In addition to :doc:`colors`, blessed also supports the limited amount of *styles* that terminals
+In addition to :doc:`colors`, Hamingjur also supports the limited amount of *styles* that terminals
 can do. These are:
 
 ``bold``
@@ -443,7 +443,7 @@ Full-Screen Mode
 
 If you've ever noticed how a program like :linuxman:`vim(1)` restores you to your unix shell history
 after exiting, it's actually a pretty basic trick that all terminal emulators support, that
-*blessed* provides using the :meth:`~Terminal.fullscreen` context manager over these two basic
+*Hamingjur* provides using the :meth:`~Terminal.fullscreen` context manager over these two basic
 capabilities:
 
 ``enter_fullscreen``
@@ -508,7 +508,7 @@ from drawing progress bars and other frippery and just stick to content:
 Singleton-Free
 --------------
 
-Beginning 1.40, blessed now uses jinxed_ instead of :mod:`curses`, and is no longer subject to the
+Hamingjur uses jinxed_ instead of :mod:`curses`, and is no longer subject to the
 per-process terminal-kind restriction that curses imposes, `"Singleton-free"
 <https://jinxed.readthedocs.io/en/stable/capabilities.html#singleton-free>`_.
 

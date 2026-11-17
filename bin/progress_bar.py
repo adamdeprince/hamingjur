@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Demonstrate both ASCII in-terminal progress bars and OSC 9;4 taskbar/dock progress."""
 # local
-from blessed import Terminal
+from hamingjur import Terminal
 
 
 def make_bar(term, state, value=0):

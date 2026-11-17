@@ -92,7 +92,7 @@ def detect_vs16_support(term, timeout=1):
 def main():
     """Program entry point."""
     # local
-    from blessed import Terminal
+    from hamingjur import Terminal
 
     term = Terminal()
     print('Unicode Support Report')

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Demonstrate DECSCUSR cursor shape changes with line editor input."""
-from blessed import Terminal
-from blessed.line_editor import LineEditor
+from hamingjur import Terminal
+from hamingjur.line_editor import LineEditor
 
 term = Terminal()
 

@@ -126,7 +126,7 @@ def test_async_inkey_resize_event():
     def child(term):
         os.write(sys.__stdout__.fileno(), SEMAPHORE)
         # Enable in-band resize in the DEC mode cache
-        from blessed.terminal import _DecPrivateMode
+        from hamingjur.terminal import _DecPrivateMode
         term._dec_mode_cache[_DecPrivateMode.IN_BAND_WINDOW_RESIZE] = True
         with term.cbreak():
             loop = asyncio.new_event_loop()
@@ -157,8 +157,8 @@ def test_async_read_byte_oserror_propagates():
 
         loop = asyncio.new_event_loop()
         try:
-            def mock_add_reader(fd, callback):
-                loop.call_soon(callback)
+            def mock_add_reader(fd, callback, *args):
+                loop.call_soon(callback, *args)
 
             with mock.patch.object(loop, 'add_reader', side_effect=mock_add_reader):
                 with mock.patch('os.read', side_effect=OSError("mock read error")):

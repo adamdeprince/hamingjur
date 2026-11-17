@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Set the xterm window title using blessed."""
+"""Set the xterm window title using hamingjur."""
 import argparse
 import sys
 
-from blessed import Terminal
+from hamingjur import Terminal
 
 
 def main():

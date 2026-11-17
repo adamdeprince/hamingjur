@@ -7,7 +7,7 @@ in conflict with vt220 function key F3, eg:
     KEY_SHIFT_F3 : ['\x1b[1;2R', '\x1b[1;66R']
     KEY_ALT_F3 : ['\x1b[1;3R', '\x1b[1;67R']
 
-The "F3 with modifier" is a bit rare but possible for anything "vt220"-derived, blessed
+The "F3 with modifier" is a bit rare but possible for anything "vt220"-derived, hamingjur
 labels it under "Legacy CSI modifier", CSI_FINAL_CHAR_TO_KEYCODE in blessed/keyboard.py,
 
 See vt220 keyboard, http://xahlee.info/kbd/vt220_terminal.html
@@ -20,10 +20,10 @@ This program runs in two passes, first, using default argument of ``capture_cpr=
 call to inkey(), then in second pass with ``capture_cpr=True``. In the first case, many "false
 matches" of KEY_modifier_F3 is matched, and in the second case, only coordinates.
 """
-import blessed
-import blessed.keyboard
+import hamingjur
+import hamingjur.keyboard
 
-term = blessed.Terminal()
+term = hamingjur.Terminal()
 
 
 class CaptureResponses:

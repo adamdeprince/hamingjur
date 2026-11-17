@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """Example of Terminal.inkey(capture_cpr=True)."""
-import blessed
+import hamingjur
 import time
 
-term = blessed.Terminal()
+term = hamingjur.Terminal()
 
 
 def msg(term, txt):

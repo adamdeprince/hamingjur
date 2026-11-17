@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import threading
-from blessed import Terminal
+from hamingjur import Terminal
 
 term = Terminal()
 

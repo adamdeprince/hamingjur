@@ -6,10 +6,10 @@ Cursor Shapes
 DECSCUSR (DEC Set Cursor Style) escape sequences allow changing the cursor
 shape between block, underline, and bar styles, with optional blinking.
 
-The blessed library provides:
+The Hamingjur library provides:
 
-* A :class:`~blessed.cursor_shape.CursorShape` class with constants for each style
-* A :meth:`~blessed.Terminal.cursor_shape` context manager for temporary changes
+* A :class:`~hamingjur.cursor_shape.CursorShape` class with constants for each style
+* A :meth:`~hamingjur.Terminal.cursor_shape` context manager for temporary changes
 
 Available Shapes
 ----------------
@@ -45,11 +45,11 @@ Available Shapes
 Usage
 -----
 
-Use the :meth:`~blessed.Terminal.cursor_shape` context manager to temporarily
+Use the :meth:`~hamingjur.Terminal.cursor_shape` context manager to temporarily
 change the cursor shape. The cursor is automatically restored to the terminal
 default on exit::
 
-    from blessed import Terminal
+    from hamingjur import Terminal
 
     term = Terminal()
 
@@ -65,11 +65,11 @@ String names are also accepted::
 Direct Sequences
 ----------------
 
-You can also use :meth:`~blessed.cursor_shape.CursorShape.sequence` to get the
+You can also use :meth:`~hamingjur.cursor_shape.CursorShape.sequence` to get the
 raw escape string for manual use::
 
     import sys
-    from blessed.cursor_shape import CursorShape
+    from hamingjur.cursor_shape import CursorShape
 
     sys.stdout.write(CursorShape.sequence(CursorShape.STEADY_BAR))
     sys.stdout.flush()

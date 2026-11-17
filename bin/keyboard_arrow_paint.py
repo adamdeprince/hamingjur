@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from blessed import Terminal
+from hamingjur import Terminal
 
 header_msg = "Press arrow keys (or 'q' to quit): "
 term = Terminal()

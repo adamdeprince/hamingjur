@@ -14,11 +14,11 @@ from wcwidth import width as wcwidth_width
 from wcwidth import center as wcwidth_center
 
 # local
-from blessed._capabilities import CAPABILITIES_CAUSE_MOVEMENT, CAPABILITIES_HORIZONTAL_DISTANCE
+from hamingjur._capabilities import CAPABILITIES_CAUSE_MOVEMENT, CAPABILITIES_HORIZONTAL_DISTANCE
 
 if TYPE_CHECKING:  # pragma: no cover
     # local
-    from blessed.terminal import Terminal
+    from hamingjur.terminal import Terminal
 
 __all__ = ('Sequence', 'SequenceTextWrapper', 'iter_parse', 'measure_length')
 
@@ -119,7 +119,7 @@ class Termcap():
             pattern ``(\d+)`` in builder.
         :arg bool match_optional: When ``True``, building of numeric patterns
             containing ``(\d+)`` will be built as optional, ``(\d+)?``.
-        :rtype: blessed.sequences.Termcap
+        :rtype: hamingjur.sequences.Termcap
         :returns: Terminal capability instance for given capability definition
         """
         _numeric_regex = r'\d+'
@@ -162,7 +162,7 @@ class Sequence(str):
         Class constructor.
 
         :arg str sequence_text: A string that may contain sequences.
-        :arg blessed.Terminal term: :class:`~.Terminal` instance.
+        :arg hamingjur.Terminal term: :class:`~.Terminal` instance.
         """
         new = str.__new__(cls, sequence_text)
         new._term = term
@@ -263,8 +263,8 @@ class Sequence(str):
 
         For example:
 
-            >>> from blessed import Terminal
-            >>> from blessed.sequences import Sequence
+            >>> from hamingjur import Terminal
+            >>> from hamingjur.sequences import Sequence
             >>> term = Terminal()
             >>> msg = term.clear + term.red('コンニチハ')
             >>> Sequence(msg, term).length()

@@ -147,7 +147,7 @@ def test_kbhit_no_kb():
 def test_kbhit_no_tty():
     """kbhit() returns False immediately if HAS_TTY is False"""
     def child():
-        with mock.patch('blessed.terminal.HAS_TTY', False):
+        with mock.patch('hamingjur.terminal.HAS_TTY', False):
             term = TestTerminal(stream=StringIO())
             stime = time.time()
             assert term.kbhit(timeout=1.1) is False
@@ -749,7 +749,7 @@ def test_inkey_with_csi_sequence_triggers_latin1_decoding():
 def test_read_until_pattern_found():
     """Test _read_until when pattern is found in input stream."""
     def child(term):
-        from blessed.keyboard import _read_until
+        from hamingjur.keyboard import _read_until
         with term.cbreak():
             # This will test the match found branch (959->961)
             match, _ = _read_until(term, r'\d+;\d+R', timeout=1.0)
@@ -769,7 +769,7 @@ def test_read_until_pattern_found():
 def test_read_until_timeout_no_match():
     """Test _read_until when timeout occurs without pattern match."""
     def child(term):
-        from blessed.keyboard import _read_until
+        from hamingjur.keyboard import _read_until
         with term.cbreak():
             # This will test the timeout branch (963->965)
             stime = time.time()
@@ -788,7 +788,7 @@ def test_read_until_timeout_no_match():
 def test_read_until_buffer_aggregation():
     """Test _read_until buffer aggregation with hot keyboard input."""
     def child(term):
-        from blessed.keyboard import _read_until
+        from hamingjur.keyboard import _read_until
         with term.cbreak():
             # This will test the buffer aggregation loop (954->958)
             match, buf = _read_until(term, r'END', timeout=1.0)
@@ -812,7 +812,7 @@ def test_read_until_buffer_aggregation():
 def test_read_until_with_none_timeout():
     """Test _read_until with None timeout (blocks indefinitely until match)."""
     def child(term):
-        from blessed.keyboard import _read_until
+        from hamingjur.keyboard import _read_until
         with term.cbreak():
             # This tests the timeout=None path
             match, _ = _read_until(term, r'DONE', timeout=None)
@@ -832,7 +832,7 @@ def test_read_until_with_none_timeout():
 def test_read_until_loop_continuation():
     """Test _read_until loop continuation when pattern not yet matched."""
     def child(term):
-        from blessed.keyboard import _read_until
+        from hamingjur.keyboard import _read_until
         with term.cbreak():
             # Send partial data first, then complete pattern
             # This tests the loop continuation (963->946)
@@ -853,7 +853,7 @@ def test_read_until_loop_continuation():
 
 def test_read_until_max_buffer_size():
     """Test _read_until stops when buffer exceeds max size limit."""
-    from blessed.keyboard import _read_until
+    from hamingjur.keyboard import _read_until
 
     term = TestTerminal(is_a_tty=True)
     term._line_buffered = False
