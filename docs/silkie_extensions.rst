@@ -41,6 +41,27 @@ Native tabs, settings and profiles are terminal UI/configuration features rather
 than additional escape protocols. Supported mappable actions use the same remote
 control API and the terminal's existing permissions.
 
+Display appearance preference
+-----------------------------
+
+Silkie reports the host desktop's light or dark preference over the terminal
+stream, including over SSH. Read it from the ``DisplayEvent`` returned by
+``term.display.query()``, or from a display report received by
+``term.inkey().protocol_event``. Its ``appearance`` property is a
+``DisplayAppearance`` enum with values ``light``, ``dark``, and ``no_preference``.
+Missing and unrecognized values resolve to ``no_preference``. The original
+fields remain available on the event. The preference describes the host
+desktop, independently of the terminal's theme or pane background.
+
+``DisplayEvent.eink_scheme`` is Silkie's effective light or dark palette on
+an e-paper display. It returns ``None`` when the host omits the field.
+
+Use ``term.display.enabled()`` to receive a report when appearance changes
+and restore the previous reporting mode on exit. Silkie also issues a resize
+notification with unchanged dimensions on an appearance change, so programs
+can query again when display events are unavailable. Hamingjur widgets handle
+both routes automatically. See :doc:`ui`.
+
 Display precision and packed pixels
 -----------------------------------
 
@@ -104,3 +125,62 @@ Persistent connection tokens preserve OpenSSH session-binding constraints.
 ``silkie.agent_request()`` provides a pure encoder for applications that manage
 their own event loop. This API transports packets; it does not implement a Unix
 socket proxy or the SSH agent's request policy.
+
+Image accessibility
+-------------------
+
+Silkie's ``a11y.1`` capability lets an application describe individual image
+placements. This works over the terminal connection, including an SSH session.
+After placing a raster, vector, or SVG image with nonzero image and placement
+IDs, attach a plain-text annotation:
+
+.. code-block:: python
+
+    from hamingjur import Terminal, graphics, silkie
+
+    term = Terminal()
+    description = silkie.ImageAnnotation(
+        name='Requests by day',
+        description='Tuesday had the most requests.',
+        details='Monday: 30\nTuesday: 60\nWednesday: 45',
+        purpose='essential',
+    )
+    document = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>'
+    with term.cbreak():
+        if term.accessibility.supported():
+            term.graphics.send(graphics.svg(document, image_id=17, p=3, q=2))
+            reply = term.accessibility.set_image(17, 3, description)
+            if reply is not None and reply.status != 'OK':
+                raise RuntimeError(reply.status)
+
+``term.graphics.draw(image, placement_id=3)`` can also create a named placement
+when the terminal supports Kitty graphics. ``term.accessibility`` and
+``term.silkie.accessibility`` refer to the same client. Replies retain their
+correlation ID and status. A timeout returns ``None``. Use ``wait=False`` for
+operations that need no acknowledgement, or use the pure encoders
+``silkie.annotate_image()`` and ``silkie.clear_image_annotation()`` in a custom
+output loop.
+
+Purposes are ``essential``, ``informative``, and ``decorative``. The default
+is unclassified. The library percent-encodes Unicode text, including embedded
+colons and percent signs. Description and details can contain tabs and line
+breaks. Updating an annotation replaces the entire description. Deleting a
+placement or replacing its image data also removes the annotation.
+
+Pane magnification and contrast
+-------------------------------
+
+Silkie can change the reported pixel size without changing the cell grid
+when magnifying a pane with raster graphics. Use ``notify_on_resize()`` or
+``graphics.adaptive()`` and prepare a fresh raster from the original source
+after a resize event. Retained vector and SVG images scale in Silkie.
+
+For explicit commands over the terminal connection, use
+``term.remote_control.magnify_pane()``,
+``term.remote_control.review_images()``, and
+``term.remote_control.set_minimum_contrast()``. These require remote control
+permission on the terminal. ``magnify_pane()`` takes ``'in'``, ``'out'``,
+``'reset'``, ``'caret'``, a pan direction, or a numeric scale with an optional
+one-based row and column. ``set_minimum_contrast(None)`` restores the pane's
+configured default. The desktop toolkit provides a portable image review
+and high-contrast palette. See :doc:`ui`.

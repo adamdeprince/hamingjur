@@ -1,5 +1,5 @@
 """Adaptive Pillow image preparation and owned graphics transport resources."""
-# Pillow and shared-memory imports are optional, loaded only by the APIs that need them.
+# Load Pillow and shared-memory modules only when the corresponding APIs use them.
 # pylint: disable=import-outside-toplevel
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from __future__ import annotations
 import io
 import os
 import zlib
+import struct
 import tempfile
 import contextlib
 from enum import Enum
@@ -58,25 +59,35 @@ class PreparedImage:
 
 @dataclass(frozen=True)
 class DrawnImage:
-    """An acknowledged image placement and its chosen representation."""
+    """A written image placement and its chosen representation."""
 
     image_id: int
     image: PreparedImage
     transfer: Transfer
+    acknowledged: bool = True
+
+
+def _display_widths(display: Mapping[str, str]) -> tuple[int, ...]:
+    """Read active channel widths, using legacy precision for omitted fields."""
+    model = display.get('color', '')
+    if model == 'mono':
+        return (1,)
+    channels = {'gray': ('gray',), 'rgb': ('red', 'green', 'blue')}.get(model, ())
+    return tuple(int(display.get(channel + '_bits', display.get('bits', '0')))
+                 for channel in channels)
 
 
 def _precision(image: Any, display: Mapping[str, str]) -> Any:
     """Match known output precision; absent information never implies eight-bit output."""
-    # Pillow is optional; importing Hamingjur does not load it.
     # 3rd party
     from PIL import Image
 
     model = display.get('color')
-    legacy = int(display.get('bits', '0'))
+    widths = _display_widths(display)
     alpha = image.getchannel('A') if image.mode == 'RGBA' else None
     if model in {'gray', 'mono'}:
         result = image.convert('L')
-        bits = 1 if model == 'mono' else int(display.get('gray_bits', str(legacy)))
+        bits, = widths
         if 0 < bits < 8:
             levels = (1 << bits) - 1
             result = result.point([((value * levels + 127) // 255 * 255 + levels // 2)
@@ -87,8 +98,7 @@ def _precision(image: Any, display: Mapping[str, str]) -> Any:
         return result
     if model == 'rgb':
         channels = []
-        for name, channel in zip(('red', 'green', 'blue'), image.convert('RGB').split()):
-            bits = int(display.get(name + '_bits', str(legacy)))
+        for bits, channel in zip(widths, image.convert('RGB').split()):
             adjusted = channel
             if 0 < bits < 8:
                 levels = (1 << bits) - 1
@@ -165,6 +175,72 @@ def _palette(image: Any) -> Optional[Any]:
     return indexed
 
 
+def _fit_gray16(image: Any, bounds: tuple[int, int]) -> tuple[Any, Optional[Any]]:
+    """Fit unsigned grayscale using Pillow's integer Lanczos path and keep PNG transparency."""
+    from PIL import Image
+
+    transparent = image.info.get('transparency')
+    # Converting via I is lossless for either byte order and supports Lanczos on older Pillow.
+    image = image.convert('I')
+    alpha = None
+    if isinstance(transparent, int):
+        samples = struct.iter_unpack('<H', image.convert('I;16').tobytes())
+        mask = bytes(0 if value == transparent else 255 for (value,) in samples)
+        if 0 in mask:
+            alpha = Image.frombytes('L', image.size, mask)
+            alpha.thumbnail(bounds, Image.Resampling.LANCZOS)
+    image.thumbnail(bounds, Image.Resampling.LANCZOS)
+    # Converting to I;16 clamps any filter overshoot and normalizes to little-endian.
+    return image.convert('I;16'), alpha
+
+
+def _gray16_encodings(image: Any, alpha: Optional[Any], formats: frozenset[int],
+                      display: Mapping[str, str]) -> Iterator[tuple[bytes, int]]:
+    """Offer native 16-bit samples and any exact (or explicitly display-matched) 8-bit form."""
+    from PIL import Image
+
+    data = image.tobytes()
+    widths = _display_widths(display)
+    if widths and all(0 < bits <= 8 for bits in widths):
+        channels = {}
+        for bits in dict.fromkeys(widths):
+            levels = (1 << bits) - 1
+            samples = struct.iter_unpack('<H', data)
+            pixels = bytes(((value * levels + 32767) // 65535 * 255 + levels // 2) // levels
+                           for (value,) in samples)
+            channels[bits] = Image.frombytes('L', image.size, pixels)
+        raster = (channels[widths[0]] if len(widths) == 1 else
+                  Image.merge('RGB', tuple(channels[bits] for bits in widths)))
+        if alpha is not None:
+            raster = raster.convert('RGB')
+            raster.putalpha(alpha)
+        matched = _encodings(raster, formats)
+        first = next(matched, None)
+        if first is not None:
+            yield first
+            yield from matched
+            return
+    if alpha is None and 316 in formats:
+        yield data, 316
+    low, high = data[::2], data[1::2]
+    if 664 in formats and (alpha is not None or 316 not in formats):
+        # Silkie uses little-endian 16-bit R, G, B and A. Duplicating each
+        # 8-bit alpha byte scales it to the corresponding 16-bit value.
+        opacity = alpha.tobytes() if alpha is not None else b'\xff' * len(low)
+        rgba = bytearray(4 * len(data))
+        for offset in (0, 2, 4):
+            rgba[offset::8], rgba[offset + 1::8] = low, high
+        rgba[6::8], rgba[7::8] = opacity, opacity
+        yield bytes(rgba), 664
+    if low != high:  # The exact expansion of an 8-bit sample is value * 257.
+        return
+    raster = Image.frombytes('L', image.size, low)
+    if alpha is not None:
+        raster = raster.convert('RGB')
+        raster.putalpha(alpha)
+    yield from _encodings(raster, formats)
+
+
 def prepare_image(source: Any, formats: Iterable[int], *, width: Optional[int] = None,
                   height: Optional[int] = None, display: Optional[Mapping[str, str]] = None,
                   match_display: bool = True) -> PreparedImage:
@@ -173,8 +249,8 @@ def prepare_image(source: Any, formats: Iterable[int], *, width: Optional[int] =
 
     Display matching is the only color reduction; set match_display=False to keep
     source precision. Alpha is retained. PNG palettes, packed grayscale, RGB565,
-    raw RGB/RGBA and fast zlib are compared where accepted, without JPEG or dithering.
-    The original image is never modified. Pillow is required only for this API.
+    gray16, raw RGB/RGBA and fast zlib are compared where accepted, without JPEG or dithering.
+    The original image is never modified.
 
     :raises TypeError: If source is not a PIL image.
     :raises ValueError: If no accepted format represents the resulting pixels losslessly.
@@ -183,29 +259,39 @@ def prepare_image(source: Any, formats: Iterable[int], *, width: Optional[int] =
     from PIL import Image, ImageOps
 
     if not isinstance(source, Image.Image):
-        raise TypeError('Expected a PIL Image; install hamingjur[images] for Pillow support')
+        raise TypeError('Expected a PIL Image')
     formats = frozenset(formats)
     for name, value in (('width', width), ('height', height)):
         if value is not None:
             integer(value, name, 1, 0xffffffff)
-    image = ImageOps.exif_transpose(source).convert('RGBA')
-    image.thumbnail((width if width is not None else image.width,
-                     height if height is not None else image.height), Image.Resampling.LANCZOS)
-    if image.getchannel('A').getextrema() == (255, 255):
-        image = image.convert('RGB')
-    if match_display and display:
-        image = _precision(image, display)
-    image.info.clear()  # Ancillary source metadata is not needed to render the prepared pixels.
-    best = min(_representations(image, formats), key=lambda value: value.wire_size, default=None)
+    image = ImageOps.exif_transpose(source)
+    bounds = (width if width is not None else image.width,
+              height if height is not None else image.height)
+    display = display if match_display and display else {}
+    # Older Pillow opens unsigned 16-bit grayscale PNG as mode I.
+    if image.mode in {'I;16', 'I;16L', 'I;16B', 'I;16N'} or (
+            image.mode == 'I' and source.format == 'PNG'):
+        image, alpha = _fit_gray16(image, bounds)
+        encodings = _gray16_encodings(image, alpha, formats, display)
+    else:
+        image = image.convert('RGBA')
+        image.thumbnail(bounds, Image.Resampling.LANCZOS)
+        if image.getchannel('A').getextrema() == (255, 255):
+            image = image.convert('RGB')
+        if display:
+            image = _precision(image, display)
+        image.info.clear()  # Ancillary metadata is unnecessary for rendering the prepared pixels.
+        encodings = _encodings(image, formats)
+    best = min(_representations(Size(*image.size), encodings),
+               key=lambda value: value.wire_size, default=None)
     if best is None:
         raise ValueError('No supported format can represent this image without further loss')
     return best
 
 
-def _representations(image: Any, formats: frozenset[int]) -> Iterator[PreparedImage]:
+def _representations(size: Size, encodings: Iterable[tuple[bytes, int]]) -> Iterator[PreparedImage]:
     """Compare compression for each lossless representation without retaining all candidates."""
-    size = Size(*image.size)
-    for data, pixel_format in _encodings(image, formats):
+    for data, pixel_format in encodings:
         yield PreparedImage(data, pixel_format, size, False)
         yield PreparedImage(zlib.compress(data, level=1), pixel_format, size, True)
 
@@ -285,3 +371,53 @@ def image_resource(data: bytes, transfer: Transfer) -> Iterator[bytes]:
                 resource_tracker.unregister(memory._name, 'shared_memory')
     else:
         raise ValueError('This transfer requires an application-owned GPU surface or direct bytes')
+
+
+# Formats whose colors are independent of terminal state and fit in an SDR raster.
+FALLBACK_FORMATS = frozenset({24, 32, 100, 301, 302, 304, 308, 401, 402, 404, 408, 516})
+
+
+def decode_image(data: bytes, pixel_format: int, width: int, height: int) -> Any:
+    """Decode a portable wire image to RGBA for another graphics backend."""
+    from PIL import Image
+
+    if pixel_format == 100:
+        with Image.open(io.BytesIO(data), formats=['PNG']) as source:
+            return source.convert('RGBA')
+    if pixel_format not in FALLBACK_FORMATS:
+        raise NotImplementedError(f'Image format {pixel_format} requires native terminal support')
+    integer(width, 'width', 1, 0xffffffff)
+    integer(height, 'height', 1, 0xffffffff)
+    if pixel_format in (24, 32):
+        mode = 'RGB' if pixel_format == 24 else 'RGBA'
+        if len(data) != width * height * len(mode):
+            raise ValueError('Raw pixel data does not match the image dimensions')
+        return Image.frombytes(mode, (width, height), data).convert('RGBA')
+    if pixel_format == 516:
+        if len(data) != width * height * 2:
+            raise ValueError('RGB565 data does not match the image dimensions')
+        rgb = bytearray()
+        for low, high in zip(data[::2], data[1::2]):
+            word = low | high << 8
+            rgb.extend((((word >> 11) * 255 + 15) // 31,
+                        ((word >> 5 & 63) * 255 + 31) // 63,
+                        ((word & 31) * 255 + 15) // 31))
+        return Image.frombytes('RGB', (width, height), bytes(rgb)).convert('RGBA')
+    bits = pixel_format % 100
+    slots = 1 << bits
+    palette_size = 4 * slots if pixel_format >= 400 else 0
+    stride = (width * bits + 7) // 8
+    if len(data) != palette_size + stride * height:
+        raise ValueError('Packed pixel data does not match the image dimensions')
+    indices = bytearray(width * height)
+    for y in range(height):
+        row = palette_size + y * stride
+        for x in range(width):
+            bit = x * bits
+            indices[y * width + x] = (data[row + bit // 8] >> (8 - bits - bit % 8)) & (slots - 1)
+    if palette_size:
+        indexed = Image.frombytes('P', (width, height), bytes(indices))
+        indexed.putpalette(data[:palette_size], rawmode='RGBA')
+        return indexed.convert('RGBA')
+    gray = bytes(value * 255 // (slots - 1) for value in indices)
+    return Image.frombytes('L', (width, height), gray).convert('RGBA')

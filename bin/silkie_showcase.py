@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Show Silkie extensions together; q exits, Tab selects details, h plays haptics.
 
-Run ``python bin/silkie_showcase.py`` after installing this checkout. No Pillow
-or native graphics library is required. The optional --font and --gpu-surface
-arguments exercise application-owned font and GPU resources as well.
+Run ``python bin/silkie_showcase.py`` after installing this checkout. The optional
+--font and --gpu-surface arguments exercise application-owned font and GPU resources.
 """
 from __future__ import annotations
 

@@ -7,11 +7,15 @@ from __future__ import annotations
 import re
 import uuid
 import contextlib
+from dataclasses import dataclass
 from enum import IntFlag
 from typing import TYPE_CHECKING, Union, Iterator, Optional
+from urllib.parse import quote
 
 # local
 from .protocols import (ST,
+                        AccessibilityAck,
+                        DisplayEvent,
                         Field,
                         ProtocolEvent,
                         b64,
@@ -84,6 +88,61 @@ def agent_request(packet: bytes, *, identifier: str, connection: str,
                    c=agent_token(connection), g=agent_token(generation),
                    expires=integer(expires, 'expires', 0, (1 << 64) - 1),
                    data=b64(agent_packet(packet)))
+
+
+@dataclass(frozen=True)
+class ImageAnnotation:
+    """A plain-text description of an image placement."""
+
+    name: str = ''
+    description: str = ''
+    details: str = ''
+    purpose: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        """Validate purpose and the text accepted by Silkie."""
+        if self.purpose not in {None, 'essential', 'informative', 'decorative'}:
+            raise ValueError('Unknown image annotation purpose')
+        for text, multiline in ((self.name, False), (self.description, True), (self.details, True)):
+            _validate_annotation_text(text, multiline)
+
+
+def _validate_annotation_text(text: str, multiline: bool) -> None:
+    if not isinstance(text, str):
+        raise TypeError('Image annotation fields must be text')
+    for char in text:
+        code = ord(char)
+        forbidden = code < 32 and not (multiline and char in '\t\n')
+        if forbidden or 127 <= code <= 159 or 0xd800 <= code <= 0xdfff:
+            raise ValueError('Image annotation text must be valid UTF-8 with no control characters')
+
+
+def _annotation_ids(image_id: int, placement_id: int, request_id: Optional[int]
+                    ) -> dict[str, Field]:
+    fields: dict[str, Field] = {'i': integer(image_id, 'image_id', 1, 0xffffffff),
+                                'p': integer(placement_id, 'placement_id', 1, 0xffffffff)}
+    if request_id is not None:
+        fields['id'] = integer(request_id, 'request_id', 0, 0x7fffffff)
+    return fields
+
+
+def annotate_image(image_id: int, placement_id: int, annotation: ImageAnnotation, *,
+                   request_id: Optional[int] = None) -> str:
+    """Encode an annotation which replaces all metadata on an existing placement."""
+    fields = _annotation_ids(image_id, placement_id, request_id)
+    if annotation.purpose is not None:
+        fields['purpose'] = annotation.purpose
+    for key in ('name', 'description', 'details'):
+        value = getattr(annotation, key)
+        if value:
+            fields[key] = quote(value, safe='')
+    return command('a11y', 'set-image', **fields)
+
+
+def clear_image_annotation(image_id: int, placement_id: int, *,
+                           request_id: Optional[int] = None) -> str:
+    """Encode a request to remove metadata from an existing placement."""
+    return command('a11y', 'clear-image', **_annotation_ids(image_id, placement_id, request_id))
 
 
 class Capabilities:
@@ -159,6 +218,19 @@ class Channel:
             self.send('mode', mode=previous)
 
 
+class DisplayChannel(Channel):
+    """Report the host display's capabilities and appearance over the terminal stream."""
+
+    def __init__(self, client: 'Silkie'):
+        """Bind the display selector."""
+        super().__init__(client, 'display')
+
+    def query(self, timeout: Optional[float] = 1.0) -> Optional[DisplayEvent]:
+        """Query display capabilities and the current desktop appearance preference."""
+        report = super().query(timeout=timeout)
+        return report if isinstance(report, DisplayEvent) else None
+
+
 class AgentChannel(Channel):
     """Explicit SSH-agent packet transport; no sockets, key caching or automatic retries."""
 
@@ -193,6 +265,41 @@ class AgentChannel(Channel):
                   c=agent_token(connection), g=agent_token(generation))
 
 
+class Accessibility:
+    """The Silkie image annotation extension for the current terminal screen."""
+
+    def __init__(self, client: 'Silkie'):
+        """Bind annotation writes and acknowledgements to a Silkie client."""
+        self.client = client
+
+    def supported(self, timeout: Optional[float] = 1.0, *, force: bool = False) -> bool:
+        """Check the aggregate capabilities for a11y.1."""
+        caps = self.client.capabilities(timeout, force=force)
+        return caps is not None and caps.supports('a11y')
+
+    def _send(self, sequence: str, request_id: Optional[int],
+              timeout: Optional[float]) -> Optional[AccessibilityAck]:
+        if request_id is None:
+            self.client.write(sequence)
+            return None
+        event = self.client.request(sequence, 'a11y', 'ack', timeout, request_id)
+        return event if isinstance(event, AccessibilityAck) else None
+
+    def set_image(self, image_id: int, placement_id: int, annotation: ImageAnnotation, *,
+                  wait: bool = True, timeout: Optional[float] = 1.0) -> Optional[AccessibilityAck]:
+        """Annotate a placed image and optionally return the correlated terminal reply."""
+        request_id = self.client.next_id() if wait else None
+        return self._send(annotate_image(image_id, placement_id, annotation, request_id=request_id),
+                          request_id, timeout)
+
+    def clear_image(self, image_id: int, placement_id: int, *, wait: bool = True,
+                    timeout: Optional[float] = 1.0) -> Optional[AccessibilityAck]:
+        """Clear a placement's annotation and optionally return the correlated terminal reply."""
+        request_id = self.client.next_id() if wait else None
+        return self._send(clear_image_annotation(image_id, placement_id, request_id=request_id),
+                          request_id, timeout)
+
+
 class Silkie:
     """
     Bound Silkie protocol client, available as ``term.silkie``.
@@ -215,11 +322,12 @@ class Silkie:
         self.haptic = Channel(self, 'haptic')
         self.ink = Channel(self, 'ink')
         self.font = Channel(self, 'font')
-        self.display = Channel(self, 'display')
+        self.display = DisplayChannel(self)
         self.latency = Channel(self, 'latency')
         self.frame = Channel(self, 'frame')
         self.depth = Channel(self, 'depth')
         self.ssh_agent = AgentChannel(self, 'ssh-agent')
+        self.accessibility = Accessibility(self)
 
     def channel(self, selector: str) -> Channel:
         """Access a future selector without waiting for a library update."""

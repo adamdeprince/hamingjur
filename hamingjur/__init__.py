@@ -1,4 +1,4 @@
-"""Hamingjur: pure Python terminal applications, graphics, and input."""
+"""Hamingjur: terminal applications, graphics, and input for Python."""
 # std imports
 import platform as _platform
 
@@ -15,4 +15,4 @@ from .imaging import Transfer, ImageSupport, PreparedImage, DrawnImage
 
 __all__ = ('Terminal', 'LineEditor', 'LineHistory', 'graphics', 'kitty', 'protocols', 'silkie',
            'Transfer', 'ImageSupport', 'PreparedImage', 'DrawnImage')
-__version__ = "0.1.1"
+__version__ = "0.1.2"

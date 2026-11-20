@@ -4,19 +4,19 @@ import io
 import os
 import zlib
 import random
+import struct
 from unittest import mock
 from multiprocessing.shared_memory import SharedMemory
 
 # 3rd party
 import pytest
+from PIL import Image
 
 # local
 from hamingjur import silkie, graphics
 from hamingjur.imaging import Transfer, ImageSupport, prepare_image, image_resource
 from hamingjur.protocols import FRAME_RE, ProtocolEvent, parse_event
 from .accessories import TestTerminal
-
-Image = pytest.importorskip('PIL.Image')
 
 
 @pytest.fixture(name='term')
@@ -135,6 +135,59 @@ def test_grayscale_display_and_precision_override():
     opaque = Image.new('RGB', (9, 2), (80, 120, 200))
     mono = prepare_image(opaque, (301,), display=dict(color='mono'))
     assert set(decoded(mono).tobytes()) <= {0, 255}
+
+
+@pytest.mark.parametrize(('mode', 'byte_order'), [('I;16', '<'), ('I;16B', '>'), ('I;16N', '=')])
+def test_draw_preserves_gray16_samples(term, mode, byte_order):
+    """Drawing uploads the exact source intensities in Silkie's little-endian format."""
+    values = (0, 256, 32768, 65535)
+    source = Image.frombytes(mode, (4, 1), struct.pack(byte_order + '4H', *values))
+    term.graphics._support = ImageSupport(
+        frozenset({24, 100, 308, 316}), frozenset({Transfer.DIRECT}))
+    term.graphics.observe(parse_event(silkie.command('display', 'event', color='mono')))
+
+    def acknowledge(sequence, image_id, timeout):
+        frame = parse_event(sequence)
+        assert frame.fields['f'] == '316'
+        data = zlib.decompress(frame.data) if frame.fields.get('o') == 'z' else frame.data
+        assert data == struct.pack('<4H', *values)
+        return ProtocolEvent('graphics', {'i': str(image_id)}, 'OK')
+
+    with mock.patch.object(term.graphics, '_request', side_effect=acknowledge):
+        result = term.graphics.draw(source, width=4, match_display=False)
+    assert result.acknowledged
+    assert source.tobytes() == struct.pack(byte_order + '4H', *values)
+
+
+def test_gray16_resizes_before_matching_display():
+    """Lanczos retains the sample range, and display matching uses its original scale."""
+    values = (0, 256, 32768, 65535)
+    source = Image.frombytes('I;16', (4, 1), struct.pack('<4H', *values))
+    fitted = prepare_image(source, (316,), width=2)
+    data = zlib.decompress(fitted.data) if fitted.compressed else fitted.data
+    expected = source.convert('I').resize((2, 1), Image.Resampling.LANCZOS)
+    assert fitted.size == (2, 1) and data == expected.convert('I;16').tobytes()
+    assert max(struct.unpack('<2H', data)) > 255
+    matched = prepare_image(source, (308,), display=dict(color='gray', gray_bits='8'))
+    assert [decoded(matched).getpixel((x, 0))[0] for x in range(4)] == [0, 1, 128, 255]
+    with pytest.raises(ValueError, match='further loss'):
+        prepare_image(source, (24, 100, 308), match_display=False)
+    exact = Image.frombytes('I;16', (2, 1), struct.pack('<2H', 257, 65535))
+    assert prepare_image(exact, (308,), match_display=False).data == b'\x01\xff'
+
+
+def test_gray16_png_preserves_transparent_sample():
+    """A PNG transparency key matches the original 16-bit sample and retains gray depth."""
+    source = Image.frombytes('I;16', (3, 1), struct.pack('<3H', 256, 32768, 65535))
+    with io.BytesIO() as stream:
+        source.save(stream, format='PNG', transparency=32768)
+        stream.seek(0)
+        with Image.open(stream) as reopened:
+            plan = prepare_image(reopened, (316, 664, 100), match_display=False)
+    data = zlib.decompress(plan.data) if plan.compressed else plan.data
+    assert plan.format == 664
+    assert list(struct.iter_unpack('<4H', data)) == [
+        (256, 256, 256, 65535), (32768, 32768, 32768, 0), (65535, 65535, 65535, 65535)]
 
 
 def test_target_geometry_and_live_display_changes(term):

@@ -12,10 +12,13 @@ from importlib.resources import files
 # local
 from .imaging import (Transfer,
                       DrawnImage,
+                      FALLBACK_FORMATS,
                       ImageSupport,
                       PreparedImage,
+                      decode_image,
                       prepare_image,
                       image_resource)
+from ._graphics_compat import GraphicsCompatibility, KITTY_FORMATS
 from .protocols import ST, Field, ProtocolEvent, b64, safe, unb64, integer, parse_event
 
 Data = Union[bytes, bytearray, memoryview, BinaryIO, Iterable[bytes]]
@@ -38,6 +41,7 @@ _FORMAT_SAMPLES.update({
     100: unb64('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1Pe'
                'AAAADElEQVR4nGNgYGAAAAAEAAH2FzhVAAAAAElFTkSuQmCC'),
     200: b'p id=1 d=M0,0L1,0L1,1Z',
+    201: b'<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>',
 })
 
 
@@ -107,7 +111,7 @@ def transmit(data: Data, *, compress: bool = False, **fields: Field) -> Iterator
 
     Keys use the protocol's spelling. This supports raster formats 24/32/100, Silkie
     packed grayscale (301/302/304/308), RGB565 (516), palette (401/402/404/408),
-    high precision (316/632/664), HDR (64) and vectors (200),
+    high precision (316/632/664), HDR (64), vectors (200) and SVG (201),
     animation frames (a=f), vector patches (a=e), and services (a=v). For t=f/t=t/t=s/t=g, data
     names a resource already owned by the caller; this function never allocates or deletes
     operating-system resources.
@@ -163,7 +167,7 @@ def image(data: Data, *, image_id: int, format: int = 100,
           width: Optional[int] = None, height: Optional[int] = None,
           display: bool = True, compress: bool = False, **placement: Field) -> Iterator[str]:
     """
-    Transmit an image; all formats except PNG require dimensions.
+    Transmit an image. PNG and SVG can use their intrinsic dimensions.
 
     Grayscale formats 301/302/304/308 pack pixels most-significant first, padding
     each row to a byte boundary. Format 516 is little-endian RGB565. Palette
@@ -180,12 +184,12 @@ def image(data: Data, *, image_id: int, format: int = 100,
     if format not in _FORMAT_SAMPLES:
         raise ValueError('Use transmit() with a sample for an unknown image format')
     fields: dict[str, Field] = {'a': 'T' if display else 't', 'i': image_id, 'f': format}
-    if (width is None) != (height is None) or (format != 100 and width is None):
+    if (width is None) != (height is None) or (format not in {100, 201} and width is None):
         raise ValueError('This image requires both width and height')
     if width is not None and height is not None:
         fields.update(s=integer(width, 'width', 1, 0xffffffff),
                       v=integer(height, 'height', 1, 0xffffffff))
-        if (format not in {100, 200} and placement.get('t', 'd') == 'd'
+        if (format in _RAW_FORMAT_BITS and placement.get('t', 'd') == 'd'
                 and isinstance(data, (bytes, bytearray, memoryview))):
             bits = _RAW_FORMAT_BITS[format]
             expected = _PALETTE_BYTES.get(format, 0) + ((width * bits + 7) // 8) * height
@@ -249,6 +253,15 @@ def scene(records: Iterable[str], *, image_id: int, width: int,
     data = ((record + '\n').encode('utf-8') for record in records)
     yield from image(data, image_id=image_id, format=200, width=width, height=height,
                      compress=compress, **fields)
+
+
+def svg(document: Union[str, Data], *, image_id: int, width: Optional[int] = None,
+        height: Optional[int] = None, display: bool = True, compress: bool = False,
+        **fields: Field) -> Iterator[str]:
+    """Stream a static SVG document in Silkie's retained graphics format."""
+    data = document.encode('utf-8') if isinstance(document, str) else document
+    yield from image(data, image_id=image_id, format=201, width=width, height=height,
+                     display=display, compress=compress, **fields)
 
 
 def patch(image_id: int, records: Iterable[str], *, compress: bool = False,
@@ -336,6 +349,7 @@ class Graphics:
         self._has_display = False
         self._image_id = 0
         self._explicit_image_ids: set[int] = set()
+        self._compatibility = GraphicsCompatibility(self)
 
     def negotiate(self, timeout: Optional[float] = 1.0, *, force: bool = False) -> ImageSupport:
         """
@@ -354,24 +368,34 @@ class Graphics:
             self._display_report = None
             self._display_probed = False
             self._has_display = False
+            self._compatibility.native = None
+            self._compatibility.sixel = None
+            self._compatibility.native_formats.clear()
         empty = ImageSupport(frozenset(), frozenset())
         if not self.terminal.does_styling:
             return empty
         caps = self.terminal.silkie.capabilities(timeout, force=force)
         self._has_display = caps is not None and caps.supports('display')
-        formats = caps.formats if caps else frozenset((24, 32, 100))
+        formats = caps.formats if caps and caps.formats else KITTY_FORMATS
         # Probe a format even when a terminal advertises it; a relay may not carry graphics.
         pixel_format = next((value for value in _FORMAT_SAMPLES
-                             if value in formats and value not in (64, 200)), None)
-        if pixel_format is None:
-            return empty
-        sample = _FORMAT_SAMPLES[pixel_format]
-        response = self.query(sample, f=pixel_format, s=1, v=1, timeout=timeout)
-        if response is None or response.payload != 'OK':
-            return empty
-        media = caps.media if caps else frozenset(('d', 'f', 't', 's'))
-        transfers = self._probe_transfers(sample, pixel_format, media, timeout)
-        self._support = ImageSupport(formats, frozenset(transfers))
+                             if value in formats and value not in (64, 200, 201)), None)
+        if pixel_format is not None and self._supports_native(pixel_format, timeout):
+            self._compatibility.native = True
+            media = caps.media if caps else frozenset(('d', 'f', 't', 's'))
+            transfers = self._probe_transfers(_FORMAT_SAMPLES[pixel_format], pixel_format,
+                                              media, timeout)
+            self._support = ImageSupport(formats, frozenset(transfers))
+        elif formats != KITTY_FORMATS and self._supports_native(24, timeout):
+            self._compatibility.native = True
+            self._support = ImageSupport(KITTY_FORMATS, frozenset((Transfer.DIRECT,)))
+        else:
+            self._compatibility.native = False
+            if force:
+                self._compatibility.sixel = self.terminal.does_sixel(timeout, force=True)
+            if not self._compatibility.has_sixel(timeout):
+                return empty
+            self._support = ImageSupport(FALLBACK_FORMATS, frozenset((Transfer.DIRECT,)))
         return self._support
 
     def _probe_transfers(self, sample: bytes, pixel_format: int, media: frozenset[str],
@@ -429,7 +453,7 @@ class Graphics:
             raise ValueError('Specify pixel dimensions or cell dimensions, not both')
         support = self.negotiate(timeout)
         if not support.formats:
-            raise RuntimeError('The terminal did not accept Kitty/Silkie image transfers')
+            raise RuntimeError('No supported graphics backend is available')
         if cells:
             cell = self.terminal.get_cell_size(timeout)
             if cell is None:
@@ -457,13 +481,15 @@ class Graphics:
              transfer: Optional[Transfer] = None, x: Optional[int] = None,
              y: Optional[int] = None, width: Optional[int] = None, height: Optional[int] = None,
              columns: Optional[int] = None, rows: Optional[int] = None,
-             match_display: bool = True, timeout: Optional[float] = 1.0) -> Optional[DrawnImage]:
+             match_display: bool = True, placement_id: Optional[int] = None,
+             timeout: Optional[float] = 1.0) -> Optional[DrawnImage]:
         """
         Draw a PIL image, choosing packing, compression and a negotiated transfer.
 
         x/y are zero-based cell coordinates; omit both to use the cursor. Local resources
         survive until acknowledgement and are cleaned on failures. A timeout raises rather
-        than silently redrawing. Returns None without styling; requires hamingjur[images].
+        than silently redrawing. Returns None without styling.
+        Supply a nonzero placement_id to attach Silkie accessibility metadata afterwards.
 
         :raises ValueError: If geometry, prepared formats or requested transfers are invalid.
         """
@@ -471,6 +497,8 @@ class Graphics:
         # pylint: disable=too-many-arguments,too-many-locals
         if not self.terminal.does_styling:
             return None
+        if placement_id is not None:
+            integer(placement_id, 'placement_id', 1, 0xffffffff)
         if (x is None) != (y is None):
             raise ValueError('Specify both x and y, or neither')
         if x is not None and y is not None:
@@ -484,8 +512,14 @@ class Graphics:
             prepared = self.prepare(source, width=width, height=height, columns=columns, rows=rows,
                                     match_display=match_display, timeout=timeout)
         support = self.negotiate(timeout)
+        if not support.formats:
+            raise RuntimeError('No supported graphics backend is available')
         if prepared.format not in support.formats:
-            raise ValueError('The prepared image format is unavailable on this connection')
+            if prepared.format not in FALLBACK_FORMATS or not support.formats & {32, 100}:
+                raise ValueError('The prepared image format is unavailable on this connection')
+            data = zlib.decompress(prepared.data) if prepared.compressed else prepared.data
+            raster = decode_image(data, prepared.format, *prepared.size)
+            prepared = prepare_image(raster, support.formats, match_display=False)
         automatic = transfer is None
         if automatic:
             transfer = next((medium for medium in (
@@ -499,23 +533,49 @@ class Graphics:
             raise ValueError('Use gpu_surface() with an application-owned GPU descriptor')
         image_id = self._allocate_image_id(image_id)
         location = self.terminal.location(x, y) if x is not None else contextlib.nullcontext()
+        if self._compatibility.native is False:
+            if placement_id is not None:
+                raise NotImplementedError('Sixel does not support placement IDs')
+            data = zlib.decompress(prepared.data) if prepared.compressed else prepared.data
+            raster = decode_image(data, prepared.format, *prepared.size)
+            with location:
+                self.terminal.send(self._compatibility.show_sixel(raster, {}, timeout))
+            self._compatibility.store_sixel(image_id, raster)
+            return DrawnImage(image_id, prepared, transfer, acknowledged=False)
         with location:
-            return self._upload(prepared, image_id, transfer, automatic, timeout)
+            result = self._upload(prepared, image_id, transfer, automatic, timeout, placement_id)
+        self._compatibility.forget(image_id)
+        return result
+
+    def forget(self, image_id: int) -> None:
+        """
+        Release a locally retained image or scene after the application is done with it.
+
+        :raises ValueError: If the image ID is outside the protocol's range.
+        """
+        self._compatibility.forget(integer(image_id, 'image_id', 1, 0xffffffff))
+
+    def _reserve_image_id(self, image_id: int) -> None:
+        """Keep a caller-provided wire ID out of the automatic allocation sequence."""
+        if image_id > self._image_id:
+            self._explicit_image_ids.add(image_id)
 
     def _allocate_image_id(self, image_id: Optional[int]) -> int:
         """Avoid explicit IDs without exhausting automatic IDs when a caller picks a high value."""
         if image_id is None:
             self._image_id = integer(self._image_id + 1, 'image_id', 1, 0xffffffff)
             while self._image_id in self._explicit_image_ids:
+                self._explicit_image_ids.remove(self._image_id)
                 self._image_id = integer(self._image_id + 1, 'image_id', 1, 0xffffffff)
             image_id = self._image_id
         else:
             integer(image_id, 'image_id', 1, 0xffffffff)
-            self._explicit_image_ids.add(image_id)
+            self._reserve_image_id(image_id)
         return image_id
 
     def _upload(self, prepared: PreparedImage, image_id: int, transfer: Transfer,
-                automatic: bool, timeout: Optional[float]) -> DrawnImage:
+                automatic: bool, timeout: Optional[float],
+                placement_id: Optional[int] = None) -> DrawnImage:
         """
         Keep owned resources alive until the terminal acknowledges their upload.
 
@@ -524,6 +584,8 @@ class Graphics:
         """
         fields: dict[str, Field] = {'a': 'T', 'i': image_id, 'f': prepared.format,
                                     's': prepared.size.width, 'v': prepared.size.height, 'q': 0}
+        if placement_id is not None:
+            fields['p'] = placement_id
         if prepared.compressed:
             fields['o'] = 'z'
         if transfer == Transfer.DIRECT:
@@ -554,8 +616,12 @@ class Graphics:
             yield self
 
     def send(self, sequences: Union[str, Iterable[str]]) -> None:
-        """Write a complete transmission and flush it."""
+        """Write graphics packets, translating them when the terminal needs a fallback."""
         self.terminal.send(sequences)
+
+    def _wire_packets(self, sequence: str) -> Iterator[str]:
+        """Translate graphics sent through either bound send method."""
+        yield from self._compatibility.packets(sequence)
 
     command = staticmethod(command)
     transmit = staticmethod(transmit)
@@ -563,6 +629,7 @@ class Graphics:
     place = staticmethod(place)
     delete = staticmethod(delete)
     scene = staticmethod(scene)
+    svg = staticmethod(svg)
     patch = staticmethod(patch)
     vector_service = staticmethod(vector_service)
     placeholder = staticmethod(placeholder)
@@ -584,16 +651,31 @@ class Graphics:
     def supports(self, format: int = 24, *, timeout: Optional[float] = 1.0,
                  **fields: Field) -> bool:
         """
-        Check a raster or vector format using a one-pixel test, without drawing.
+        Check a raster or vector format, including local rendering where available.
 
         :raises ValueError: If arguments or protocol data are invalid.
         """
         # pylint: disable=redefined-builtin
         if format not in _FORMAT_SAMPLES:
             raise ValueError('Use query() with a sample for this format')
-        if not self.terminal.does_styling or self.terminal._is_apple_terminal(timeout):
+        if not self.terminal.does_styling:
             return False
-        event = self.query(_FORMAT_SAMPLES[format], f=format, s=1, v=1, timeout=timeout, **fields)
+        if fields:
+            return self._supports_native(format, timeout, **fields)
+        if self._compatibility.native_format(format, timeout):
+            return True
+        kitty = self._compatibility.has_native(timeout)
+        if not kitty and not self._compatibility.has_sixel(timeout):
+            return False
+        return format in {200, 201} or format in FALLBACK_FORMATS
+
+    def _supports_native(self, pixel_format: int, timeout: Optional[float],
+                         **fields: Field) -> bool:
+        if pixel_format not in _FORMAT_SAMPLES or self.terminal._is_apple_terminal(timeout):
+            return False
+        size = {} if pixel_format == 201 else {'s': 1, 'v': 1}
+        event = self.query(_FORMAT_SAMPLES[pixel_format], f=pixel_format,
+                           timeout=timeout, **size, **fields)
         return event is not None and event.payload == 'OK'
 
     def service(self, operation: str, *, request_id: int = 31,

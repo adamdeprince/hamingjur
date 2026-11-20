@@ -6,14 +6,11 @@ live entirely in the ``hamingjur`` namespace. It does not install or import a
 ``blessed`` package, so both distributions can coexist in an environment.
 Graphics, tablet input, typography, and display control are built-in features.
 
-The implementation uses the Python standard library in addition to Blessed's
-existing dependencies. Adaptive PIL image drawing uses optional Pillow support;
-see :doc:`images`. It does not run kittens, allocate GPU surfaces, or require native
-graphics bindings. Remote control is a separate, explicit API described in
-:doc:`remote_control`. Vector rasterization, text shaping,
-font loading, and hardware access occur in the terminal. The tablet example also
-provides a pure Python raster brush. GPU transport references a
-surface already allocated by the application or another library.
+Hamingjur uses Pillow for image preparation and resvg for local vector
+rasterization when the terminal needs a fallback. See :doc:`images`. Native
+Silkie scenes use the terminal's renderer, text shaping and font loading.
+GPU transport references a surface already allocated by the application or
+another library. The :doc:`remote_control` API uses the terminal's permissions.
 
 Output and input
 ----------------
@@ -107,7 +104,7 @@ its previous shape on exit, and support simultaneous contacts, final pen-up
 samples, and cancellation. Ink mode checks that terminal ink and tool reporting
 were granted. The canvas uses the window and cell dimensions at startup; restart
 the example after changing the window size or font size. Press ``q`` or Escape
-to exit. No Pillow, native graphics bindings, or external renderer is needed.
+to exit.
 
 Raster cells are allocated as touched and active contact layers grow as needed.
 Completed raster strokes merge into the canvas, releasing their contact layers.
@@ -273,8 +270,9 @@ slot, followed by packed indices. Formats 8 and 16 index the terminal's palette.
 PNG uses 100. ``compress=True`` on these byte encoders streams zlib compression;
 the PIL drawing API chooses compression itself.
 File, temporary-file and shared-memory transports take encoded resource names;
-the terminal controls their documented deletion/unlink lifecycle. Query support
-before sending Silkie-specific keys to Kitty.
+the terminal controls their documented deletion/unlink lifecycle. See
+:doc:`images` for automatic graphics fallback and the operations each backend
+can reproduce.
 
 .. code-block:: python
 
@@ -283,11 +281,8 @@ before sending Silkie-specific keys to Kitty.
             graphics.vector_record('g', id=1, box=(0, 0, 200, 100)),
             graphics.vector_record('p', id=2, g=1,
                                    d='M10,10L190,10L190,90L10,90Z', fill='#3388ff'),
-            graphics.text_record(3, {'text': 'Hello', 'x': 20, 'y': 50,
-                                     'size': 24, 'fill': '#ffffff'}, group=1),
         ]
         term.graphics.send(graphics.scene(records, image_id=8, width=200, height=100, q=2))
-        term.graphics.send(graphics.patch(8, ['g id=1 t=2,0,0,2,0,0'], q=2))
 
 Data retention and bounds
 -------------------------

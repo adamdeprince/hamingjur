@@ -272,10 +272,11 @@ def test_notification_route_query_never_displays_a_notification(demo, monkeypatc
 
 @pytest.mark.parametrize('terminator', ['\x07', '\x1b\\'])
 @pytest.mark.parametrize('answer', ['0', '1', None])
-def test_pointer_probe_uses_real_string_query_result(demo, terminator, answer):
+def test_pointer_probe_uses_real_string_query_result(demo, terminator, answer, monkeypatch):
     """Read real buffered replies through Terminal.query, including unsupported terminals."""
     demo.term._is_a_tty = True
     demo.term._keyboard_fd = None
+    monkeypatch.setattr(demo.term, 'does_kitty_graphics', lambda *_: True)
     demo.formats.add(32)
     reply = f'\x1b]22;{answer}{terminator}' if answer is not None else ''
     demo.term.ungetch('x' + reply + '\x1b[1;1R')

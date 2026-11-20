@@ -5,6 +5,7 @@ import math
 import base64
 from typing import Dict, Union, Mapping, Optional
 from dataclasses import dataclass
+from enum import Enum
 
 ST = '\x1b\\'
 Field = Union[str, int]
@@ -239,6 +240,39 @@ class TabletEvent(ProtocolEvent):
         return unb64(value).decode('utf-8') if value is not None else None
 
 
+class DisplayAppearance(str, Enum):
+    """Desktop appearance preferences reported by the host terminal."""
+
+    LIGHT = 'light'
+    DARK = 'dark'
+    NO_PREFERENCE = 'no_preference'
+
+
+@dataclass(frozen=True)
+class DisplayEvent(ProtocolEvent):
+    """A Silkie display capability report or change event."""
+
+    @property
+    def appearance(self) -> DisplayAppearance:
+        """Return the host desktop preference, including when the field is unknown."""
+        value = self.fields.get('appearance')
+        if value == 'light':
+            return DisplayAppearance.LIGHT
+        if value == 'dark':
+            return DisplayAppearance.DARK
+        return DisplayAppearance.NO_PREFERENCE
+
+    @property
+    def eink_scheme(self) -> DisplayAppearance | None:
+        """Return Silkie's effective e-paper palette when it is reported."""
+        value = self.fields.get('eink_scheme')
+        if value == 'light':
+            return DisplayAppearance.LIGHT
+        if value == 'dark':
+            return DisplayAppearance.DARK
+        return None
+
+
 @dataclass(frozen=True)
 class AgentEvent(ProtocolEvent):
     """SSH-agent transport reply, retaining generation, connection and failure fields."""
@@ -247,6 +281,16 @@ class AgentEvent(ProtocolEvent):
     def data(self) -> bytes:
         """Decode and validate the complete packet in the data field of a reply."""
         return agent_packet(unb64(self.fields['data']))
+
+
+@dataclass(frozen=True)
+class AccessibilityAck(ProtocolEvent):
+    """A Silkie image annotation acknowledgement."""
+
+    @property
+    def status(self) -> str:
+        """Return the terminal's status, including errors such as ENOENT or ENOMEM."""
+        return self.fields['status']
 
 
 # These are complete frames, never a fixed-size input buffer. Unknown OSC 777
@@ -292,6 +336,14 @@ def parse_event(raw: str) -> ProtocolEvent:
         fields = parse_fields(header)
         if fields.get('v') != '1' or not fields.get('op'):
             raise ValueError('Unsupported Silkie version or missing operation')
+        if selector == 'display' and fields['op'] in {'cap', 'event'}:
+            return DisplayEvent('silkie:display', fields, raw=raw)
+        if selector == 'a11y' and fields['op'] == 'ack':
+            identifier = fields.get('id', '')
+            if not re.fullmatch(r'[0-9]+', identifier) or not fields.get('status'):
+                raise ValueError('Invalid accessibility acknowledgement')
+            integer(int(identifier), 'id', 0, 0x7fffffff)
+            return AccessibilityAck('silkie:a11y', fields, raw=raw)
         event_type = {'tablet-pointer': TabletEvent, 'ssh-agent': AgentEvent}.get(
             selector, ProtocolEvent)
         return event_type('silkie:' + token(selector), fields, raw=raw)

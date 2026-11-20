@@ -16,6 +16,7 @@ from pathlib import Path
 
 SOURCE_URL = 'https://github.com/adamdeprince/hamingjur/blob/master/'
 ORDER = ('terminal', 'graphics', 'imaging', 'silkie', 'protocols', 'kitty',
+         'ui.desktop', 'ui.widgets', 'ui.layout', 'ui.dialogs', 'ui.editor',
          'keyboard', 'mouse', 'line_editor', 'window', 'remote_control',
          'control', 'shell', 'color', 'colorspace', 'cursor_shape', 'dec_modes',
          'formatters', 'sequences', 'win_terminal')
@@ -97,8 +98,12 @@ def declaration(module, node, parent=None):
 
 def collect(package_root):
     """Collect every public module, declaration and class method in source order."""
-    files = {p.stem: p for p in (package_root / 'hamingjur').glob('*.py')
-             if not p.name.startswith('_')}
+    package = package_root / 'hamingjur'
+    files = {}
+    for path in package.rglob('*.py'):
+        parts = path.relative_to(package).with_suffix('').parts
+        if all(not part.startswith('_') for part in parts):
+            files['.'.join(parts)] = path
     modules = []
     for stem in (*ORDER, *sorted(set(files) - set(ORDER))):
         path = files.get(stem)
@@ -149,8 +154,9 @@ def render_modules(modules):
     sections = []
     for module in modules:
         entries = '\n'.join(render_entry(e) for e in module['entries'])
+        module_id = module['name'].removeprefix('hamingjur.').replace('.', '-')
         sections.append(f'''<details class="api-module" data-module="{esc(module['name'])}"
-id="module-{esc(module['name'].split('.')[-1])}">
+id="module-{esc(module_id)}">
 <summary><code>{esc(module['name'])}</code><span>{len(module['entries'])} entries</span></summary>
 <div class="module-content"><p class="module-description">{esc(module['doc'])}</p>{entries}</div></details>''')
     return '\n'.join(sections)

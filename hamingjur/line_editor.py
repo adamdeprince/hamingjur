@@ -214,6 +214,24 @@ class LineEditor:  # pylint: disable=too-many-instance-attributes
         return "".join(self._buf)
 
     @property
+    def cursor_column(self) -> int:
+        """Return the insertion point as a display column before scrolling."""
+        if self.password_mode:
+            return self._cursor * self._wcswidth(self.password_char)
+        return self._cursor_display_col()
+
+    def move_to_column(self, column: int) -> None:
+        """Move the insertion point to the closest grapheme boundary at a display column."""
+        distance = 0
+        for index, grapheme in enumerate(self._buf):
+            span = self._wcswidth(self.password_char if self.password_mode else grapheme)
+            if 2 * (column - distance) < span:
+                self._cursor = index
+                return
+            distance += span
+        self._cursor = len(self._buf)
+
+    @property
     def password_mode(self) -> bool:
         """Return whether password mode is currently active."""
         return self._password_mode

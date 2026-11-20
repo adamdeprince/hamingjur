@@ -52,7 +52,6 @@ Font upload and GPU allocation need application-owned resources, so they show
 The GPU descriptor must name a real accessible surface kept alive by its owner.
 The script references and refreshes it; it does not allocate a GPU surface.
 Use ``--timeout 1`` on slower connections or ``--fps 2`` for fewer redraws.
-No Pillow or native graphics dependencies are required.
 
 .. note: animations are made using the following CLI example:
 

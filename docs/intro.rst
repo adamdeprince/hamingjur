@@ -1,14 +1,14 @@
 Hamingjur
 =========
 
-Hamingjur is a pure Python terminal library forked from
+Hamingjur is a Python terminal library forked from
 `Blessed <https://github.com/jquast/blessed>`_. It combines portable terminal
 text and keyboard APIs with Kitty and Silkie graphics, tablet and touch input,
 gestures, terminal-local ink, typography, HDR, clipboard, notifications, and
 presentation timing.
 
-Install with ``pip install hamingjur``; use ``pip install 'hamingjur[images]'``
-for adaptive PIL image drawing. To install a checkout, use ``pip install .``.
+Install with ``pip install hamingjur`` for the complete library, including image
+drawing and vector rasterization. To install a checkout, use ``pip install .``.
 All code lives in the
 ``hamingjur`` namespace; the package neither provides nor imports ``blessed``.
 Hamingjur and upstream Blessed can be installed together.
@@ -29,6 +29,8 @@ First-class terminal features
 
 * Text, colors, cursor movement, full-screen applications, Unicode layout,
   line editing, keyboard, mouse, focus, paste, and resize events.
+* A terminal desktop with reusable widgets, overlapping windows,
+  modal dialogs, menus, and configurable themes in ``hamingjur.ui``.
 * Raster and vector images, packed grayscale and RGB565, animations, image placement,
   styled vector text, font resources, HDR, wide gamut color, and image-backed pointers.
 * Pen pressure and tilt, simultaneous contacts, tablet pads, gestures, scrolling,
@@ -64,11 +66,6 @@ Run inside Silkie, selecting one required mode::
 vector updates from Python. ``ink`` lets Silkie draw eligible pen strokes
 locally, with Python fallback for other contacts. All three use a pen-shaped
 pointer. Press ``q`` or Escape to exit.
-
-The library uses Python and its standard library with the existing ``wcwidth``
-and ``jinxed`` dependencies. Pillow is optional and used by the high-level image
-planner; byte encoders and tablet drawing do not need it. Native graphics bindings
-and kitten subprocesses are not required.
 
 Project and attribution
 -----------------------

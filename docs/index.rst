@@ -7,6 +7,7 @@ Welcome to Hamingjur documentation!
 
    intro
    features
+   ui
    images
    silkie_extensions
    window

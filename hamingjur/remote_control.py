@@ -6,6 +6,7 @@ import re
 import json
 import time
 import socket
+from sys import float_info
 from typing import TYPE_CHECKING, Any, Mapping, Optional
 from urllib.parse import urlsplit
 
@@ -205,3 +206,52 @@ class RemoteControl:
         if self.terminal is not None:
             self.terminal.invalidate_geometry()
         return result
+
+    def _pane_command(self, command_name: str, payload: Mapping[str, Any],
+                      timeout: Optional[float]) -> Any:
+        if self.terminal is None:
+            raise ValueError('Silkie pane controls require the terminal connection')
+        return self.call(command_name, payload, timeout=timeout)
+
+    def magnify_pane(self, operation: str | float = 'in', *, row: Optional[int] = None,
+                     column: Optional[int] = None, timeout: Optional[float] = 1.0) -> Any:
+        """Ask Silkie to zoom or pan the calling pane over its terminal connection."""
+        if isinstance(operation, str):
+            if operation not in {'in', 'out', 'reset', 'caret', 'left', 'right', 'up', 'down'}:
+                raise ValueError('Unknown pane magnification operation')
+            if row is not None or column is not None:
+                raise ValueError('A center requires a numeric magnification')
+            argument = operation
+        else:
+            if (isinstance(operation, bool) or not isinstance(operation, (int, float))
+                    or not 1 <= operation <= float_info.max):
+                raise ValueError('Pane magnification must be a finite factor of at least one')
+            if (row is None) != (column is None):
+                raise ValueError('Supply both one-based center coordinates')
+            argument = str(operation)
+            if row is not None and column is not None:
+                argument += (f' {integer(row, "row", 1, (1 << 32) - 1)}'
+                             f' {integer(column, "column", 1, (1 << 32) - 1)}')
+        result = self._pane_command('action', {'action': f'magnify_pane {argument}', 'self': True},
+                                    timeout)
+        assert self.terminal is not None
+        self.terminal.invalidate_geometry()
+        return result
+
+    def review_images(self, *, include_decorative: bool = False,
+                      timeout: Optional[float] = 1.0) -> Any:
+        """Ask Silkie to open the current pane's native image review."""
+        action = 'review_all_images' if include_decorative else 'review_images'
+        return self._pane_command('action', {'action': action, 'self': True}, timeout)
+
+    def set_minimum_contrast(self, percent: Optional[float], *,
+                             timeout: Optional[float] = 1.0) -> Any:
+        """Set the calling pane's contrast threshold, or restore its default with None."""
+        if percent is None:
+            value = 'default'
+        else:
+            if (isinstance(percent, bool) or not isinstance(percent, (int, float))
+                    or not 0 <= percent <= 100):
+                raise ValueError('Minimum contrast must be a percentage from 0 to 100')
+            value = str(percent)
+        return self._pane_command('set-minimum-contrast', {'value': value}, timeout)

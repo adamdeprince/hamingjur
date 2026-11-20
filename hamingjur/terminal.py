@@ -44,7 +44,7 @@ from wcwidth import list_term_programs
 from .color import COLOR_DISTANCE_ALGORITHMS, xterm256gray_from_rgb, xterm256color_from_rgb
 from .kitty import Kitty
 from .shell import Shell
-from .silkie import Silkie, Channel, AgentChannel
+from .silkie import Accessibility, Silkie, Channel, AgentChannel, DisplayChannel
 from .silkie import depth as depth_sequence
 from .window import Size, Window
 from .graphics import Graphics
@@ -241,7 +241,11 @@ class Terminal:
         """Write terminal commands or streamed packets and flush at completion."""
         if self.does_styling:
             for sequence in (sequences,) if isinstance(sequences, str) else sequences:
-                self.stream.write(sequence)
+                if '\x1b_G' in sequence and self.is_a_tty:
+                    for packet in self.graphics._wire_packets(sequence):
+                        self.stream.write(packet)
+                else:
+                    self.stream.write(sequence)
             self.stream.flush()
 
     @cached_property
@@ -316,8 +320,8 @@ class Terminal:
         return self.silkie.font
 
     @property
-    def display(self) -> Channel:
-        """Display capabilities and change reporting."""
+    def display(self) -> DisplayChannel:
+        """Silkie display capabilities, desktop appearance, and change reporting."""
         return self.silkie.display
 
     @property
@@ -329,6 +333,11 @@ class Terminal:
     def frame(self) -> Channel:
         """Frame presentation timing."""
         return self.silkie.frame
+
+    @property
+    def accessibility(self) -> Accessibility:
+        """Silkie image placement annotations and their acknowledgements."""
+        return self.silkie.accessibility
 
     @property
     def ssh_agent(self) -> AgentChannel:
@@ -1269,7 +1278,8 @@ class Terminal:
             self.stream.write(self.restore)
             self.stream.flush()
 
-    def get_location(self, timeout: float = TERMINAL_QUERY_TIMEOUT_SECONDS) -> Tuple[int, int]:
+    def get_location(self, timeout: Optional[float] = TERMINAL_QUERY_TIMEOUT_SECONDS
+                     ) -> Tuple[int, int]:
         r"""
         Return tuple (row, column) of cursor position.
 

@@ -1,8 +1,68 @@
 Adaptive image drawing
 ======================
 
-Install ``pip install '.[images]'`` to enable Pillow image preparation. The
-ordinary graphics byte encoders continue to work without Pillow.
+Graphics fallback
+-----------------
+
+Applications use the same ``term.graphics.send()`` and ``term.graphics.draw()``
+calls on each terminal. Hamingjur sends native graphics when available. It
+renders compatible Silkie scenes as PNG on Kitty and converts raster output to
+sixel when Kitty graphics are unavailable. A standard Hamingjur installation
+includes Pillow for image preparation and resvg for vector rasterization.
+
+* Local vector rendering supports paths, symbols, groups with affine transforms,
+  rectangular clips, opacity and solid sRGB paints. It renders at the scene's
+  intrinsic pixel size. Kitty handles placement and scaling and can update an
+  existing scene's raster through its animation frame protocol. Shaped vector
+  text, gradients, pen strokes, embedded images and other native Silkie
+  rendering features require Silkie.
+* On sixel, direct PNG, RGB, RGBA, packed grayscale, image-local palette and
+  RGB565 uploads can be placed at the cursor. Cell sizing uses the terminal's
+  current pixel geometry. Color uses the available sixel registers and alpha
+  becomes binary at 50 percent. By default the sixel terminal controls cursor
+  movement after drawing. Use ``C=1`` to preserve the cursor on terminals that
+  report its position, or pass ``x`` and ``y`` to ``draw()``.
+* Sixel draws pixels into the terminal. Operations such as deleting visible
+  pixels by image ID, patching a visible scene, virtual placements, relative
+  placements, stacking and animation raise ``NotImplementedError``. A stored
+  image can be placed again. Call ``term.graphics.forget(image_id)`` to release
+  its local data when done. Use the terminal's ordinary screen operations to
+  clear displayed pixels.
+
+``term.graphics.supports(format)`` includes compatible local rendering for the
+basic format. ``term.graphics.query()``, ``term.does_kitty_graphics()`` and Silkie
+capability reports still describe the native terminal protocol. Sixel sends
+produce no Kitty response. A successful sixel ``draw()`` returns a
+``DrawnImage`` with ``acknowledged=False``.
+
+SVG graphics
+------------
+
+``graphics.svg()`` streams a static SVG document using Silkie's retained SVG
+format (``f=201``). The first Silkie builds that support the format rasterize it
+at the placement size. On Kitty or sixel, Hamingjur uses resvg to rasterize the
+document locally. Send it through the usual graphics writer to select the
+available route automatically.
+
+.. code-block:: python
+
+    from hamingjur import Terminal, graphics
+
+    term = Terminal()
+    document = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32">' \
+               '<circle cx="24" cy="16" r="12" fill="#67DDB1"/></svg>'
+    if term.graphics.supports(201):
+        term.graphics.send(graphics.svg(document, image_id=7, c=8, q=2))
+
+Omit ``width`` and ``height`` to use the document's intrinsic size, or supply
+both to set nominal pixel dimensions. The normal graphics placement controls
+apply. Update a document by resending it under the same image ID. The SVG
+renderer accepts static documents with local fragment references and embedded
+raster images. DTDs are rejected. Scripts, animations and external file or URL
+references are ignored.
+
+Drawing images
+--------------
 
 .. code-block:: python
 
@@ -33,6 +93,13 @@ to preserve source color precision. Transparency is retained even on gray
 displays. Display matching and spatial downsampling can reduce information;
 all subsequent encoding transforms preserve the resulting pixels exactly.
 
+The planner keeps 16-bit grayscale samples through resizing and uses Silkie's
+gray16 format (``316``) when needed. A grayscale PNG with transparent pixels can
+use 16-bit RGBA (``664``). With display matching enabled, a display that reports
+eight bits per active channel or fewer can use samples scaled to that precision.
+When the negotiated formats cannot represent the fitted samples without further
+loss, preparation raises ``ValueError``.
+
 The library compares raw RGB/RGBA, PNG, exact PNG palettes, packed grayscale
 and RGB565 where supported. Grayscale packing uses the lowest accepted precision
 that represents every resulting intensity exactly, with separate byte padding
@@ -55,10 +122,10 @@ with per-pixel alpha in ``16``. High precision ``316/632/664`` carry little-endi
 
 ``term.graphics.prepare(image, ...)`` returns a ``PreparedImage`` with ``data``,
 ``format``, ``size``, ``compressed`` and ``wire_size``. Pass it to ``draw(plan)``
-to send those prepared bytes. ``DrawnImage`` records the acknowledged image ID,
-plan and transfer. Reuse ``image_id`` to replace an image on redraw; release it
-with ``term.graphics.send(term.graphics.delete(image_id))``. Keep the original
-PIL image when planning again for a changed display or window.
+to send those prepared bytes. ``DrawnImage`` records the image ID, plan and
+transfer. On Kitty or Silkie, reuse ``image_id`` to replace an image on redraw
+and release it with ``term.graphics.send(term.graphics.delete(image_id))``.
+Keep the original PIL image when planning again for a changed display or window.
 
 Transfer negotiation
 --------------------
@@ -77,6 +144,7 @@ Negotiation probes actual file and shared-memory resources: terminal support
 alone does not establish that a remote connection can read local resources.
 Without aggregate discovery, a successful Kitty graphics probe establishes its
 standard RGB, RGBA and PNG formats, then local resource probes select the media.
+On sixel, ``DIRECT`` describes the source bytes the library can translate.
 Successful results are cached per terminal. Pass ``force=True`` after reconnecting
 or changing the relay; it also refreshes display discovery on the next preparation.
 
@@ -88,8 +156,8 @@ terminal errors, timeouts and exceptions. POSIX shared memory is unlinked either
 by the terminal or by the library. Actual payload lengths are sent separately
 from OS allocation sizes, which may be rounded to memory pages.
 
-Queries preserve unrelated input. Upload failure raises an error; a missing
-acknowledgement raises ``TimeoutError`` and is never silently retried. Serialize
+Queries preserve unrelated input. Upload failure raises an error. For native
+graphics, a missing acknowledgement raises ``TimeoutError``. Serialize
 calls that share a terminal. No image-size or retained-resource-count cap is
 imposed; allocation failures propagate. GPU allocation remains application-owned.
 
@@ -112,7 +180,10 @@ original image:
             event = key.protocol_event
             if key.name == 'RESIZE_EVENT' or (event and event.protocol == 'silkie:display'):
                 result = term.graphics.draw(image, image_id=result.image_id, x=0, y=0)
-        term.graphics.send(term.graphics.delete(result.image_id))
+        if result.acknowledged:
+            term.graphics.send(term.graphics.delete(result.image_id))
+        else:
+            term.graphics.forget(result.image_id)
 
 ``notify_on_resize()`` prefers inline reports. On Unix it falls back to a scoped
 SIGWINCH handler and pipe that wakes blocking ``inkey()`` and ``async_inkey()``.

@@ -52,14 +52,14 @@ html[data-theme="dark"]{--paper:#11130f;--surface:#1b1e17;--ink:#f7f6f1;--muted:
 <aside class="sidebar" id="sidebar" aria-label="Documentation navigation">
   <div class="sidebar-group"><p class="nav-title">The project</p><nav>
   <a href="#overview" class="active">Overview</a><a href="#why">How it fits together</a><a href="#quickstart">Installation &amp; first steps</a><a href="#capabilities">Feature map</a><a href="#recipes">Working examples</a><a href="#contracts">Response types &amp; lifecycle</a><a href="#showcase">Try the showcase</a><a href="#contribute">Contributing &amp; upstream</a></nav></div>
-  <div class="sidebar-group"><p class="nav-title">API reference</p><nav><a href="#api">Search all APIs</a><a class="module-link" href="#module-terminal">Terminal</a><a class="module-link" href="#module-graphics">Graphics &amp; images</a><a class="module-link" href="#module-silkie">Silkie &amp; channels</a><a class="module-link" href="#module-protocols">Events &amp; responses</a><a class="module-link" href="#module-kitty">Kitty encoders</a><a class="module-link" href="#module-line_editor">Line editor</a><a class="module-link" href="#module-remote_control">Remote control</a></nav></div>
-  <div class="side-note"><strong>Pure Python. Terminal native.</strong>Python 3.9+ · MIT<br>Core dependencies: <code>wcwidth</code> and <code>jinxed</code>.<br>Pillow is optional.</div>
+  <div class="sidebar-group"><p class="nav-title">API reference</p><nav><a href="#api">Search all APIs</a><a class="module-link" href="#module-terminal">Terminal</a><a class="module-link" href="#module-graphics">Graphics &amp; images</a><a class="module-link" href="#module-ui-desktop">Widget library</a><a class="module-link" href="#module-silkie">Silkie &amp; channels</a><a class="module-link" href="#module-protocols">Events &amp; responses</a><a class="module-link" href="#module-kitty">Kitty encoders</a><a class="module-link" href="#module-line_editor">Line editor</a><a class="module-link" href="#module-remote_control">Remote control</a></nav></div>
+  <div class="side-note"><strong>Hamingjur</strong>Python 3.9+ · MIT<br>Image preparation uses Pillow. Vector fallback uses resvg.</div>
 </aside>
 <main class="main" id="main">
 <section class="section hero" id="overview" aria-labelledby="hero-title">
   <p class="eyebrow">Open source / Python terminal library</p>
   <h1 id="hero-title">Hamingjur</h1>
-  <p class="hero-copy">Portable terminal text and input, Kitty graphics, and Silkie extensions for pen, touch, typography, and display control. A pure Python library for building terminal applications.</p>
+  <p class="hero-copy">Portable terminal text and input, Kitty graphics, and Silkie extensions for pen, touch, typography, and display control.</p>
   <aside class="fork-credit" aria-label="Upstream attribution">
     <svg viewBox="0 0 20 24" fill="none" aria-hidden="true"><circle cx="5" cy="4" r="2.5" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="4" r="2.5" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="20" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 7v2a5 5 0 0 0 5 5m5-7v2a5 5 0 0 1-5 5v3" stroke="currentColor" stroke-width="1.5"/></svg>
     <p><strong>Forked from <a href="https://github.com/jquast/blessed" target="_blank" rel="noopener">Blessed</a>.</strong> Thanks to Jeff Quast, Erik Rose, Avram Lubkin, and the Blessed contributors. Blessed was itself forked from Erik Rose’s <a href="https://github.com/erikrose/blessings" target="_blank" rel="noopener">blessings</a>.</p>
@@ -82,27 +82,24 @@ with term.cbreak():
     if key:
         print(f"You pressed {key!r}")</code></pre></div>
   </div>
-  <div class="hero-bottom"><span>Pure Python · optional Pillow support</span><span>Kitty protocols + Silkie extensions</span><span>Import namespace: hamingjur</span></div>
+  <div class="hero-bottom"><span>Adaptive images and vector fallback</span><span>Kitty protocols + Silkie extensions</span><span>Import namespace: hamingjur</span></div>
 </section>
 
 <section class="section" id="why">
   <p class="section-num">01 / PROJECT OVERVIEW</p><h2>How Hamingjur fits together.</h2>
   <p class="section-intro">Start with readable text and ordinary input. Add graphics, richer devices, or precise display feedback through the same <code>Terminal</code> object. Discover capabilities before depending on them.</p>
   <div class="principles"><article class="principle"><div class="number">01 — PORTABLE FOUNDATIONS</div><h3>Text is still first class.</h3><p>Colors, cursor movement, Unicode width, full-screen contexts, keyboard input, mouse events, and a headless line editor.</p></article><article class="principle"><div class="number">02 — RICHER PROTOCOLS</div><h3>Pixels, paths, and pens.</h3><p>Kitty image transport and Silkie vector scenes, shaped text, tablet pressure, multitouch, gestures, and terminal-local ink.</p></article><article class="principle"><div class="number">03 — EXPLICIT CONTROL</div><h3>Ask, then act.</h3><p>Read capability replies and granted modes. Scope reporting with context managers and release the resources your application owns.</p></article></div>
-  <div class="architecture"><div class="architecture-row"><div class="architecture-step"><strong>Your Python application</strong><span>state · content · event loop</span></div><div class="arrow" aria-hidden="true">→</div><div class="architecture-step"><strong>Hamingjur</strong><span>Terminal · encoders · clients</span></div><div class="arrow" aria-hidden="true">→</div><div class="architecture-step"><strong>The terminal</strong><span>rendering · shaping · hardware</span></div></div><p class="caption">The terminal performs vector rasterization, text shaping, font loading, and hardware access. Hamingjur encodes requests and reads replies.</p></div>
+  <div class="architecture"><div class="architecture-row"><div class="architecture-step"><strong>Your Python application</strong><span>state · content · event loop</span></div><div class="arrow" aria-hidden="true">→</div><div class="architecture-step"><strong>Hamingjur</strong><span>Terminal · encoders · clients</span></div><div class="arrow" aria-hidden="true">→</div><div class="architecture-step"><strong>The terminal</strong><span>rendering · shaping · hardware</span></div></div><p class="caption">Silkie renders vector scenes directly. Hamingjur rasterizes compatible scenes locally for Kitty and sixel terminals.</p></div>
   <p class="small" style="margin-top:24px">Hamingjur is maintained by Adam DePrince. It is an independent MIT-licensed fork, with inherited work and notices from Jeff Quast, Erik Rose, Avram Lubkin, and other Blessed contributors. Its <code>hamingjur</code> namespace can coexist with upstream <code>blessed</code>.</p>
 </section>
 
 <section class="section" id="quickstart">
   <p class="section-num">02 / GET STARTED</p><h2>Installation &amp; a first program.</h2>
-  <p class="section-intro">Install from PyPI, or work from a source checkout. The core APIs need only Python, <code>wcwidth</code>, and <code>jinxed</code>. Add Pillow when you want adaptive image drawing.</p>
+  <p class="section-intro">A standard install from PyPI or a source checkout includes image preparation and vector rasterization.</p>
   <div class="split"><div><h3>Install from PyPI</h3><div class="code-block"><div class="code-header"><span>SHELL</span><button class="copy" data-copy="install-code">Copy</button></div><pre><code id="install-code">python -m pip install hamingjur
 
-# Optional Pillow image support
-python -m pip install 'hamingjur[images]'
-
 # Or, from a source checkout
-python -m pip install -e .</code></pre></div><p class="small">The optional images extra adds Pillow. The editable command is for development from the repository root.</p></div>
+python -m pip install -e .</code></pre></div><p class="small">The editable command is for development from the repository root.</p></div>
   <div><h3>Run in a terminal</h3><div class="code-block"><div class="code-header"><span>PYTHON · hello.py</span><button class="copy" data-copy="hello-code">Copy</button></div><pre><code id="hello-code">from hamingjur import Terminal
 
 term = Terminal()
@@ -123,7 +120,8 @@ with term.fullscreen(), term.cbreak(), term.hidden_cursor():
   <div class="table-wrap"><table><thead><tr><th>What you need</th><th>Start here</th><th>Terminal requirement</th></tr></thead><tbody>
   <tr><td>Text, color &amp; layout</td><td><a href="#api-hamingjur-terminal-Terminal"><code>Terminal</code></a><br><code>bold</code>, <code>color_rgb()</code>, <code>move_xy()</code>, <code>length()</code>, <code>wrap()</code></td><td>Terminfo-backed capabilities; Unicode width through wcwidth.</td></tr>
   <tr><td>Keyboard, mouse &amp; editing</td><td><code>inkey()</code>, <code>async_inkey()</code>, <code>mouse_enabled()</code>, <a href="#api-hamingjur-line_editor-LineEditor"><code>LineEditor</code></a></td><td>Reporting modes depend on the terminal. The line editor is headless.</td></tr>
-  <tr><td>Raster &amp; adaptive images</td><td><a href="#api-hamingjur-graphics-Graphics-draw"><code>term.graphics.draw()</code></a>, <code>prepare()</code>, <code>negotiate()</code></td><td><span class="protocol-tag">KITTY / SILKIE</span><br>Pillow for adaptive preparation; direct encoders need no Pillow.</td></tr>
+  <tr><td>Widget library</td><td><a href="#module-ui-desktop"><code>hamingjur.ui</code></a></td><td>Overlapping windows, keyboard and mouse controls, modal dialogs, and themes that follow the terminal’s display preference.<br><a href="https://github.com/adamdeprince/hamingjur/blob/master/docs/ui.rst">Desktop guide</a></td></tr>
+  <tr><td>Raster &amp; adaptive images</td><td><a href="#api-hamingjur-graphics-Graphics-draw"><code>term.graphics.draw()</code></a>, <code>prepare()</code>, <code>negotiate()</code></td><td><span class="protocol-tag">KITTY / SILKIE / SIXEL</span><br>Pillow prepares images for the available terminal graphics protocol.</td></tr>
   <tr><td>Vectors &amp; shaped text</td><td><code>graphics.scene()</code>, <code>patch()</code>, <code>text_record()</code>, <code>measure_text()</code></td><td><span class="protocol-tag">SILKIE · f=200</span><br>Rendering and shaping happen in the terminal.</td></tr>
   <tr><td>Pen, touch, pads &amp; gestures</td><td><code>term.tablet</code>, <code>term.scroll</code>, <code>term.gesture</code>, <code>key.tablet</code></td><td><span class="protocol-tag">SILKIE · OSC 777</span><br>Discover selector support, capabilities, and granted reporting bits.</td></tr>
   <tr><td>Ink &amp; haptics</td><td><code>term.ink</code>, <code>term.haptic</code></td><td><span class="protocol-tag">SILKIE</span><br>Local ink needs a vector image and a brush; haptics need a permitted device.</td></tr>
@@ -154,7 +152,7 @@ with term.cbreak():
                     print(event.position, event.pressure, event.tilt)
     else:
         print("Tablet reporting: not supported")</code></pre></div><p class="small">Touchpad coordinates are available through <code>touchpad_position</code>; they are normalized values, rather than physical screen pixels. Reporting contexts restore the previous mode on exit.</p></article>
-  <article class="recipe"><h3>02 — Draw an image and release it</h3><p>The adaptive image API fits your source, negotiates formats and transfer media, and waits for an acknowledgement. Keep the source image if you plan to redraw after a resize.</p><div class="code-block"><div class="code-header"><span>PYTHON · requires .[images] and a local photo.png</span><button class="copy" data-copy="image-code">Copy</button></div><pre><code id="image-code">from PIL import Image
+  <article class="recipe"><h3>02 — Draw an image and release it</h3><p>The adaptive image API fits your source and negotiates formats and transfer media. Kitty and Silkie acknowledge the upload. Keep the source image if you plan to redraw after a resize.</p><div class="code-block"><div class="code-header"><span>PYTHON · uses a local photo.png</span><button class="copy" data-copy="image-code">Copy</button></div><pre><code id="image-code">from PIL import Image
 from hamingjur import Terminal
 
 term = Terminal()
@@ -166,11 +164,13 @@ with Image.open("photo.png") as source, term.cbreak():
         )
         term.inkey()
     finally:
-        if result is not None:
+        if result and result.acknowledged:
             term.graphics.send(
                 term.graphics.delete(result.image_id)
-            )</code></pre></div><p class="small">Use pixel <code>width</code>/<code>height</code> or cell <code>columns</code>/<code>rows</code>, never both. Source formats include packed grayscale, RGB565, RGB/RGBA, PNG, and HDR half-float RGBA where supported. GPU surfaces require an application-owned descriptor.</p></article>
-  <article class="recipe"><h3>03 — Send a retained vector scene</h3><p>Vector records describe paths, groups, gradients, clips, pressure strokes, and shaped text. Use <code>patch()</code> to replace or append records in an existing scene.</p><div class="code-block"><div class="code-header"><span>PYTHON · Silkie vector images</span><button class="copy" data-copy="vector-code">Copy</button></div><pre><code id="vector-code">from hamingjur import Terminal, graphics
+            )
+        elif result:
+            term.graphics.forget(result.image_id)</code></pre></div><p class="small">Use pixel <code>width</code>/<code>height</code> or cell <code>columns</code>/<code>rows</code>, never both. Source formats include packed grayscale, RGB565, RGB/RGBA, PNG, and HDR half-float RGBA where supported. GPU surfaces require an application-owned descriptor.</p></article>
+  <article class="recipe"><h3>03 — Send a retained vector scene</h3><p>Silkie renders this path scene directly. Kitty and sixel receive a rasterized copy. Shaped text, gradients and pressure strokes require native Silkie.</p><div class="code-block"><div class="code-header"><span>PYTHON · Silkie vector images</span><button class="copy" data-copy="vector-code">Copy</button></div><pre><code id="vector-code">from hamingjur import Terminal, graphics
 
 term = Terminal()
 with term.cbreak():
@@ -179,10 +179,9 @@ with term.cbreak():
             graphics.vector_record(
                 "p", id=1, d="M0,0H240V100H0Z", fill="#183e35"
             ),
-            graphics.text_record(2, {
-                "text": "Hello, vectors.", "x": 16, "y": 58,
-                "size": 26, "fill": "#c4e6a8"
-            }),
+            graphics.vector_record(
+                "p", id=2, d="M24,76L76,24L128,76Z", fill="#c4e6a8"
+            ),
         ]
         try:
             term.graphics.send(graphics.scene(
@@ -190,7 +189,10 @@ with term.cbreak():
             ))
             term.inkey()
         finally:
-            term.graphics.send(graphics.delete(7, q=2))
+            if term.does_kitty_graphics():
+                term.graphics.send(graphics.delete(7, q=2))
+            else:
+                term.graphics.forget(7)
     else:
         print("Vector graphics: not supported")</code></pre></div></article>
   <article class="recipe"><h3>04 — Keep input and application state separate</h3><p><code>LineEditor</code> handles editing, history, suggestions, grapheme movement, and optional password masking. Your application decides where and when to render.</p><div class="code-block"><div class="code-header"><span>PYTHON · a headless editor in an event loop</span><button class="copy" data-copy="editor-code">Copy</button></div><pre><code id="editor-code">from hamingjur import Terminal, LineEditor, LineHistory
