@@ -33,15 +33,34 @@ def test_terminal_query_returns_typed_report_and_preserves_input(term):
     """The typed query correlates its response without consuming input or change reports."""
     term._is_a_tty = True
     term._keyboard_fd = None
-    update = silkie.command('display', 'event', t=40, appearance='dark')
-    reply = silkie.command('display', 'cap', id=1, mode=0, appearance='light')
+    update = silkie.command('display', 'event', t=40, appearance='dark', high_contrast=0,
+                            differentiate_without_color=1, languages='fr-CA,en-US')
+    reply = silkie.command('display', 'cap', id=1, mode=0, appearance='light',
+                           high_contrast=1, differentiate_without_color=0, languages='en-US,fr-CA')
     term.ungetch('x' + update + reply + '\x1b[1;1R')
     report = term.display.query(timeout=0)
     assert isinstance(report, DisplayEvent)
     assert report.appearance is DisplayAppearance.LIGHT
+    assert report.high_contrast and not report.differentiate_without_color
+    assert report.languages == ('en-US', 'fr-CA')
     assert term.display is term.silkie.display
     assert term.inkey(timeout=0) == 'x'
-    assert term.inkey(timeout=0).protocol_event.appearance is DisplayAppearance.DARK
+    event = term.inkey(timeout=0).protocol_event
+    assert isinstance(event, DisplayEvent) and event.appearance is DisplayAppearance.DARK
+    assert event.differentiate_without_color and not event.high_contrast
+    assert event.languages == ('fr-CA', 'en-US')
+
+
+@pytest.mark.parametrize('fields,languages', [
+    ({}, ()),
+    ({'high_contrast': '2', 'differentiate_without_color': 'yes', 'languages': 'und'}, ('und',)),
+    ({'languages': ',en-US,??,zh-Hant-TW,'}, ('en-US', 'zh-Hant-TW')),
+])
+def test_display_report_preference_defaults(fields, languages):
+    """Default missing or unknown flags and retain the ordered, valid language tags."""
+    report = parse_event(silkie.command('display', 'event', **fields))
+    assert not report.high_contrast and not report.differentiate_without_color
+    assert report.languages == languages
 
 
 def test_widgets_follow_display_and_repaint_with_unchanged_dimensions(term):
@@ -85,6 +104,54 @@ def test_cancel_theme_dialog_resumes_latest_display_preference(term):
     assert app.theme['window'] == Theme(light=True)['window']
 
 
+def test_high_contrast_uses_pure_black_and_white(term):
+    """Repaint the desktop and windows in high contrast when the appearance changes."""
+    app = Application(term)
+    app.add(Window('Preferences', Button('Done', app.stop)))
+    for appearance, background, channel in (
+        ('dark', '#000000', 0),
+        ('light', '#FFFFFF', 255),
+        ('dark', '#000000', 0),
+    ):
+        previous = len(term.stream.getvalue())
+        app.dispatch(parse_event(silkie.command(
+            'display', 'event', appearance=appearance, high_contrast=1)))
+        assert app.theme['desktop'].bg == app.theme['window'].bg == background
+        assert app.theme['window'].fg == ('#FFFFFF' if appearance == 'dark' else '#000000')
+        app.draw()
+        assert term.on_color_rgb(channel, channel, channel) in term.stream.getvalue()[previous:]
+
+
+def test_widgets_follow_live_accessibility_hints(term):
+    """Use the effective display palette and show errors without depending on hue."""
+    app = Application(term)
+    app.set_status('Recheck the value', error=True)
+    initial = app.theme
+    app.draw()
+    output = term.stream.getvalue()
+    report = parse_event(silkie.command('display', 'event', kind='eink', appearance='dark',
+                                       eink_scheme='light', high_contrast=1,
+                                       differentiate_without_color=1, languages='en-US'))
+    assert app.dispatch(report) and app.display_report is report
+    palette = app.theme
+    assert palette['window'].bg == '#FFFFFF'
+    assert palette['focus'].bg == '#000000'
+    assert palette['error'].bg != Theme.high_contrast(light=True)['error'].bg
+    assert all(len(set(bytes.fromhex(app.theme[role].bg[1:]))) == 1 for role in app.theme.roles)
+    app.draw()
+    assert 'Error: Recheck the value' in term.stream.getvalue()[len(output):]
+    output = term.stream.getvalue()
+    app.dispatch(parse_event(silkie.command('display', 'event', kind='eink', appearance='dark',
+                                           eink_scheme='light', high_contrast=1,
+                                           differentiate_without_color=1, languages='fr-CA')))
+    app.draw()
+    assert app.display_report.languages == ('fr-CA',)
+    assert app.theme is palette
+    assert 'Erreur : Recheck the value' in term.stream.getvalue()[len(output):]
+    app.dispatch(parse_event(silkie.command('display', 'event', kind='lcd')))
+    assert app.theme is initial
+
+
 def test_widgets_follow_eink_palette_and_restore_os_appearance(term):
     app = Application(term)
     for kind, eink_scheme, appearance, light in (
@@ -119,8 +186,10 @@ def test_application_subscribes_or_requeries_on_resize(term, monkeypatch, report
         queries.append(True)
         if reporting == 'unsupported':
             return None
+        first = len(queries) == 1
         return parse_event(silkie.command(
-            'display', 'cap', id=len(queries), appearance='light' if len(queries) == 1 else 'dark'))
+            'display', 'cap', id=len(queries), appearance='light' if first else 'dark',
+            high_contrast=int(not first)))
 
     @contextmanager
     def enabled():
@@ -133,7 +202,7 @@ def test_application_subscribes_or_requeries_on_resize(term, monkeypatch, report
             modes.append('exit')
 
     def draw():
-        shown.append(app.display_appearance)
+        shown.append((app.display_appearance, app.theme['window'].bg))
 
     def get_key():
         return next(events)
@@ -149,19 +218,21 @@ def test_application_subscribes_or_requeries_on_resize(term, monkeypatch, report
     app.add(Window('Test', Button('Done', app.stop)))
     frames.append(Keystroke('', name='RESIZE_EVENT'))
     if reporting == 'granted':
-        frames.append(resolve_sequence(silkie.command('display', 'event', appearance='dark'),
-                                       {}, {}))
+        frames.append(resolve_sequence(silkie.command('display', 'event', appearance='dark',
+                                                       high_contrast=1), {}, {}))
     frames.append(Keystroke('', name='KEY_ENTER'))
     events = iter(frames)
     app.run()
+    light = DisplayAppearance.LIGHT, Theme(light=True)['window'].bg
+    dark_high_contrast = DisplayAppearance.DARK, '#000000'
     if reporting == 'unsupported':
-        assert shown == [DisplayAppearance.NO_PREFERENCE] * 2
+        assert shown == [(DisplayAppearance.NO_PREFERENCE, Theme()['window'].bg)] * 2
         assert modes == [] and len(queries) == 1
     elif reporting == 'granted':
-        assert shown == [DisplayAppearance.LIGHT, DisplayAppearance.LIGHT, DisplayAppearance.DARK]
+        assert shown == [light, light, dark_high_contrast]
         assert modes == ['enter', 'exit'] and len(queries) == 1
     else:
-        assert shown == [DisplayAppearance.LIGHT, DisplayAppearance.DARK]
+        assert shown == [light, dark_high_contrast]
         assert modes == (['enter'] if reporting == 'no-mode-reply' else ['enter', 'exit'])
         assert len(queries) == 2
 

@@ -41,8 +41,8 @@ Native tabs, settings and profiles are terminal UI/configuration features rather
 than additional escape protocols. Supported mappable actions use the same remote
 control API and the terminal's existing permissions.
 
-Display appearance preference
------------------------------
+Display preferences
+-------------------
 
 Silkie reports the host desktop's light or dark preference over the terminal
 stream, including over SSH. Read it from the ``DisplayEvent`` returned by
@@ -56,11 +56,20 @@ desktop, independently of the terminal's theme or pane background.
 ``DisplayEvent.eink_scheme`` is Silkie's effective light or dark palette on
 an e-paper display. It returns ``None`` when the host omits the field.
 
-Use ``term.display.enabled()`` to receive a report when appearance changes
-and restore the previous reporting mode on exit. Silkie also issues a resize
-notification with unchanged dimensions on an appearance change, so programs
-can query again when display events are unavailable. Hamingjur widgets handle
-both routes automatically. See :doc:`ui`.
+``DisplayEvent.high_contrast`` and ``DisplayEvent.differentiate_without_color``
+give Silkie's effective accessibility preferences. Both return ``False`` for
+missing or unrecognized values. Silkie can derive these hints from the display
+and desktop settings, and users can override them in ``silkie.conf``.
+``DisplayEvent.languages`` is a tuple of host language tags in preference order.
+An empty tuple means the host reported no usable tags, while ``('und',)``
+means the host explicitly reported an undetermined language.
+
+Use ``term.display.enabled()`` to receive reports when the display state or
+these preferences change. The context restores the previous reporting mode
+on exit. Silkie also issues a resize notification when these preferences
+change, even if the dimensions stay the same. Programs can query again when
+display events are unavailable. Hamingjur widgets handle both routes
+automatically. See :doc:`ui`.
 
 Display precision and packed pixels
 -----------------------------------
@@ -167,6 +176,39 @@ colons and percent signs. Description and details can contain tabs and line
 breaks. Updating an annotation replaces the entire description. Deleting a
 placement or replacing its image data also removes the annotation.
 
+Text accessibility
+------------------
+
+Silkie's ``a11y.2`` capability lets applications label text for screen readers,
+hide decorative cell ranges, and request one-shot announcements. Check
+``term.accessibility.supported(version=2)`` before using these operations.
+
+.. code-block:: python
+
+    with term.cbreak():
+        if term.accessibility.supported(version=2):
+            term.send([term.move_xy(0, 1), '>>'])
+            term.accessibility.set_text(7, (2, 1), (2, 3),
+                                        role='prompt', label='Search')
+
+            # Call when the error occurs.
+            term.accessibility.announce('Search failed', priority='assertive')
+            term.accessibility.clear_text(7)
+
+Range coordinates are one-based ``(row, column)`` pairs on the active screen.
+The start is inclusive, the end is exclusive, and the end column may be one
+past the last column. Roles are ``prompt``, ``status``, ``completion``, and
+``decorative``. A label replaces the accessible text. Decorative ranges are
+omitted from it. Ranges expire when their cells change, the pane is resized,
+or the terminal switches screens. A new range replaces overlapping ranges.
+
+Announcements default to ``polite`` priority. Send them when an event occurs.
+The terminal can acknowledge with ``ENOTSUP`` if native announcements are
+unavailable. Acknowledgements include the terminal's status, and a timeout
+returns ``None``. Pass ``wait=False`` to send without waiting for a reply.
+``silkie.annotate_text()``, ``silkie.clear_text_annotation()``, and
+``silkie.announce()`` encode the same requests for custom event loops.
+
 Pane magnification and contrast
 -------------------------------
 
@@ -184,3 +226,46 @@ permission on the terminal. ``magnify_pane()`` takes ``'in'``, ``'out'``,
 one-based row and column. ``set_minimum_contrast(None)`` restores the pane's
 configured default. The desktop toolkit provides a portable image review
 and high-contrast palette. See :doc:`ui`.
+
+Speech and Voice Lock
+---------------------
+
+``term.speech`` and ``term.silkie.speech`` provide the same client for the
+terminal host's ``speech.1`` protocol. Query it from cbreak mode to get a
+``SpeechCapabilities`` report with ``available``, ``engine``, and
+``pitch_range``. An unavailable extension returns ``None``, and a responding
+host without a backend reports ``available=False``.
+
+.. code-block:: python
+
+    from hamingjur import Terminal, silkie
+
+    term = Terminal()
+    with term.cbreak():
+        caps = term.speech.query()
+        if caps is not None and caps.available:
+            term.speech.set_style('comment', silkie.SpeechStyle(
+                language='fr-CA', rate=-10, pitch=-25, split_caps=True))
+            term.speech.queue('Ligne 17', options=silkie.SpeechStyle(language='fr-CA'))
+            term.speech.silence(100, queued=True)
+            term.speech.queue('Enregistrer le fichier', style='comment')
+            term.speech.dispatch()
+
+``SpeechStyle`` holds voice, language, rate, pitch, pitch range, volume,
+punctuation and mixed-case word splitting. Named styles are scoped to the
+pane. Per-utterance options override the fields they set. Rate, pitch and pitch
+range accept integers from −100 to 100. Volume accepts integers from 0 to 100.
+Punctuation accepts ``none``, ``some`` or ``all``. Voice names, languages and
+sound names depend on the backend installed on the terminal host.
+
+``speak()`` submits text for playback and ``character()`` echoes one Unicode
+character. ``sound()`` plays a native audio cue and ``silence()`` inserts a
+duration in milliseconds. Queued items play on ``dispatch()``.
+``pause()`` and ``resume()`` control playback, ``stop()`` clears the pane's
+speech, and ``reset()`` also clears its named styles. ``clear_style()`` removes
+one named style.
+
+Commands send once by default. Pass ``wait=True`` for a correlated
+``SpeechAck`` with the terminal's status or ``None`` on timeout. A successful
+acknowledgement means the host accepted the command. ``silkie.speech_command()``
+encodes speech commands for a custom transport or event loop.

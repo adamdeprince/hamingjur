@@ -14,7 +14,7 @@ Kitty and Silkie API
    :members:
 
 .. automodule:: hamingjur.protocols
-   :members: ProtocolEvent, TabletEvent, AgentEvent, parse_event
+   :members: ProtocolEvent, TabletEvent, DisplayAppearance, DisplayEvent, AgentEvent, AccessibilityAck, SpeechCapabilities, SpeechAck, parse_event
 
 .. automodule:: hamingjur.window
    :members:

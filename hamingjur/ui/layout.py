@@ -5,9 +5,12 @@ import re
 import unicodedata
 from dataclasses import dataclass, replace
 from itertools import groupby
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Mapping
 
 from wcwidth import iter_graphemes, width
+
+from ..color import rgb_to_xyz
+from ..colorspace import hex_to_rgb, rgb_to_hex
 
 if TYPE_CHECKING:
     from ..terminal import Terminal
@@ -143,19 +146,44 @@ class Theme:
                                     for role, fields in config.items()})
 
     @classmethod
-    def high_contrast(cls) -> Theme:
-        """Create a high-contrast palette for color and monochrome terminals."""
+    def high_contrast(cls, *, light: bool = False) -> Theme:
+        """Create a high-contrast palette with a dark or light background."""
         base = cls()
-        roles = {role: Style('#FFFFFF', '#000000', bold=base[role].bold)
-                 for role in base.roles}
-        roles.update(focus=Style('#000000', '#FFFFFF', bold=True),
-                     selection=Style('#000000', '#66FFDC'),
-                     accent=Style('#66FFDC', '#000000', bold=True),
-                     bar=Style('#FFFFFF', '#333333', bold=True),
-                     menu=Style('#FFFFFF', '#333333'),
-                     control=Style('#FFFFFF', '#292929'),
-                     error=Style('#000000', '#FFD5CB', bold=True))
+        fg, bg = ('#000000', '#FFFFFF') if light else ('#FFFFFF', '#000000')
+        roles = {role: Style(fg, bg, bold=base[role].bold) for role in base.roles}
+        roles['focus'] = Style(bg, fg, bold=True)
+        if light:
+            roles.update(selection=Style(bg, '#005E4B'),
+                         accent=Style('#004D3C', bg, bold=True),
+                         bar=Style(fg, '#DDDDDD', bold=True),
+                         menu=Style(fg, '#DDDDDD'),
+                         control=Style(fg, '#EEEEEE'),
+                         error=Style('#7F160B', '#FFD5CB', bold=True))
+        else:
+            roles.update(selection=Style(bg, '#66FFDC'),
+                         accent=Style('#66FFDC', bg, bold=True),
+                         bar=Style(fg, '#333333', bold=True),
+                         menu=Style(fg, '#333333'),
+                         control=Style(fg, '#292929'),
+                         error=Style(bg, '#FFD5CB', bold=True))
         return cls(roles)
+
+    def grayscale(self) -> Theme:
+        """Return a palette with the same luminance and emphasis for every role."""
+        return self.with_styles(**{
+            role: replace(style, fg=_gray(style.fg), bg=_gray(style.bg))
+            for role, style in self._styles.items()
+        })
+
+
+def _gray(color: str | None) -> str | None:
+    if color is None:
+        return None
+    _, luminance, _ = rgb_to_xyz(*hex_to_rgb(color))
+    linear = luminance / 100
+    srgb = 12.92 * linear if linear <= 0.0031308 else 1.055 * linear ** (1 / 2.4) - 0.055
+    channel = round(srgb * 255)
+    return rgb_to_hex(channel, channel, channel).upper()
 
 
 @dataclass(frozen=True)
@@ -203,22 +231,43 @@ Cell = tuple[str, str, int]
 Row = list[Cell]
 
 
+class GraphicLayer:
+    """A retained graphics producer composited with ordinary cell drawing."""
+
+    def present(self, canvas: Canvas) -> None:
+        """Present placements after all windows have drawn."""
+        raise NotImplementedError
+
+    def graphics_error(self, image_id: int, reason: str) -> None:
+        """Handle a terminal error addressed to an image this producer owns."""
+
+    def release(self) -> None:
+        """Release this producer's terminal resources."""
+        raise NotImplementedError
+
+
 class Canvas:
     """One screen of cells, composited back to front and presented by changed row."""
 
-    def __init__(self, size: Rect, appearance: Appearance, term: Terminal):
+    def __init__(self, size: Rect, appearance: Appearance, term: Terminal, *,
+                 translate: Callable[[str], str] = str, accessibility: bool = False):
         """Allocate cells to match the current physical terminal dimensions."""
         self.size = size
         self.appearance = appearance
         self.term = term
+        self.translate = translate
+        self.accessible_cells: dict[tuple[int, int], str] | None = {} if accessibility else None
         self.rows: list[Row] = [
             [(' ', 'desktop', x) for x in range(size.width)] for _ in range(size.height)]
+        self.layers: dict[GraphicLayer, None] = {}
+        self.stamp = 0
+        self.cover: dict[tuple[int, int], int] = {}
         self.images: dict[ImageView, Rect] = {}
         self._image_cells: dict[tuple[int, int], ImageView] = {}
 
     def text(self, text: str) -> str:
         """Prepare safe terminal text using the selected character set."""
-        text = plain(text)
+        text = plain(self.translate(text))
         if self.appearance.ascii_only:
             text = unicodedata.normalize('NFKD', text)
             text = ''.join(char for char in text if not unicodedata.combining(char))
@@ -230,13 +279,19 @@ class Canvas:
         return width(text, ambiguous_width=self.term.ambiguous_width, term_program=(
             self.term.term_program or False))
 
-    def put(self, x: int, y: int, text: str, span: int, role: str) -> None:
+    def put(self, x: int, y: int, text: str, span: int, role: str,
+            accessibility_role: str | None = None) -> None:
         """Replace a span, clearing complete graphemes when layers overlap."""
         row = self.rows[y]
         end = x + span
+        accessible = self.accessible_cells
         for start in {row[col][2] for col in range(x, end)}:
             col = start
             while col < len(row) and row[col][2] == start:
+                if self.stamp:
+                    self.cover[col, y] = self.stamp
+                if accessible:
+                    accessible.pop((y, col), None)
                 if self._image_cells:
                     owner = self._image_cells.pop((col, y), None)
                     if owner is not None:
@@ -246,6 +301,9 @@ class Canvas:
         row[x] = (text, role, x)
         for col in range(x + 1, end):
             row[col] = ('', role, x)
+        if accessible is not None and accessibility_role is not None:
+            for col in range(x, end):
+                accessible[y, col] = accessibility_role
 
     def surface(self, bounds: Rect) -> Surface:
         """Create a drawing surface clipped to the visible screen."""
@@ -319,6 +377,26 @@ class Surface:
         """Return the displayed width of plain text."""
         return self._canvas.width(self._canvas.text(text))
 
+    def translate(self, text: str) -> str:
+        """Resolve a localized message before combining it with other text."""
+        return self._canvas.translate(text)
+
+    @property
+    def clip(self) -> Rect:
+        """Absolute visible rectangle before later widgets draw."""
+        return self._clip
+
+    @property
+    def terminal(self) -> Terminal:
+        """Terminal that owns the current surface and its graphics resources."""
+        return self._canvas.term
+
+    def graphic(self, layer: GraphicLayer) -> int:
+        """Mark a placement in paint order. Later cell writes can occlude it."""
+        self._canvas.layers[layer] = None
+        self._canvas.stamp += 1
+        return self._canvas.stamp
+
     def _claim_image(self, image: ImageView, bounds: Rect) -> None:
         """Register an image rectangle only when it fits entirely inside the clip."""
         if not bounds.width or not bounds.height or bounds.intersection(self._clip) != bounds:
@@ -333,8 +411,8 @@ class Surface:
         return Surface(self._canvas, bounds, self._clip.intersection(bounds))
 
     def write(self, x: int, y: int, text: str, role: str = 'text', *,
-              end: int | None = None) -> None:
-        """Write text clipped at grapheme boundaries."""
+              end: int | None = None, accessibility_role: str | None = None) -> None:
+        """Write text clipped at grapheme boundaries, with an optional screen-reader role."""
         x += self.bounds.x
         y += self.bounds.y
         if not self._clip.y <= y < self._clip.bottom:
@@ -345,7 +423,7 @@ class Surface:
             if x + span > right:
                 break
             if span > 0 and x >= self._clip.x:
-                self._canvas.put(x, y, grapheme, span, role)
+                self._canvas.put(x, y, grapheme, span, role, accessibility_role)
             x += max(span, 0)
 
     def fill(self, role: str = 'window') -> None:

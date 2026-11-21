@@ -6,6 +6,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Callable, Iterable, Mapping
 
+from ._i18n import Message
 from .layout import Rect, Theme
 from .desktop import Application, Dialog
 from .widgets import (Button, InputLine, Label, ListBox, RadioGroup, ScrollView, Stack,
@@ -39,7 +40,8 @@ class IntegerValidator:
                 return None
         except ValueError:
             pass
-        return f'Enter an integer from {self.minimum} to {self.maximum}'
+        return Message('Enter an integer from {minimum} to {maximum}',
+                       minimum=self.minimum, maximum=self.maximum)
 
 
 class FormDialog(Dialog):
@@ -53,8 +55,8 @@ class FormDialog(Dialog):
         self.on_submit = on_submit
         rows: list[Widget] = []
         for name, field in self.fields.items():
-            rows.extend((Label(name), field))
-        rows.append(Stack(Button('OK', self.submit), Button('Cancel', self.close),
+            rows.extend((Label(name, accessibility_role='prompt'), field))
+        rows.append(Stack(Button(Message('OK'), self.submit), Button(Message('Cancel'), self.close),
                           horizontal=True, gap=1))
         content = Stack(*rows, gap=1)
         size = bounds if bounds is not None else Rect(0, 0, 50, content.preferred_height + 2)
@@ -81,11 +83,21 @@ class FormDialog(Dialog):
             self.on_submit(values)
 
 
+class _MessageView(TextView):
+    def __init__(self, message: str, *, grow: int, height: int):
+        super().__init__(message, grow=grow, height=height)
+        self.message = message
+
+    def _localize(self, translate: Callable[[str], str], measure: Callable[[str], int]) -> bool:
+        self.text = translate(self.message)
+        return False
+
+
 def message_box(app: Application, title: str, message: str, *,
-                choices: Iterable[str] = ('OK',),
+                choices: Iterable[str] | None = None,
                 on_close: Callable[[object], None] | None = None) -> Dialog:
     """Open a modal message with caller-defined buttons and return their labels."""
-    labels = tuple(choices)
+    labels = tuple(choices) if choices is not None else ('OK',)
     if not labels:
         raise ValueError('A message box needs at least one button')
     dialog: Dialog
@@ -93,9 +105,11 @@ def message_box(app: Application, title: str, message: str, *,
     def choice(value: str) -> Callable[[], None]:
         return lambda: dialog.close(value)
 
-    buttons = [Button(label, choice(label)) for label in labels]
+    buttons = ([Button(label, choice(label)) for label in labels] if choices is not None
+               else [Button(Message('OK'), choice('OK'))])
     # The default height is a visual viewport. Text beyond it remains scrollable.
-    text = TextView(message, grow=1, height=min(8, max(1, len(message.splitlines()))))
+    view = _MessageView if isinstance(message, Message) else TextView
+    text = view(message, grow=1, height=min(8, max(1, len(message.splitlines()))))
     actions = Stack(*buttons, horizontal=True, gap=1)
     content = Stack(text, actions)
     size = Rect(0, 0, max(48, actions.preferred_width + 2), content.preferred_height + 2)
@@ -123,7 +137,7 @@ def prompt(app: Application, title: str, label: str, *, value: str = '',
 class FileDialog(Dialog):
     """A keyboard and mouse file selector for open, save, or directory selection."""
 
-    def __init__(self, title: str = 'Open file', *, directory: str | Path = '.',
+    def __init__(self, title: str = Message('Open file'), *, directory: str | Path = '.',
                  mode: str = 'open', pattern: str = '*',
                  on_select: Callable[[Path], None] | None = None):
         """Start in the specified directory and filter files with a glob pattern."""
@@ -137,8 +151,8 @@ class FileDialog(Dialog):
         self.name = InputLine(on_submit=lambda _: self.submit())
         self.listing = ListBox(label=self._label, on_activate=self._open_entry, grow=1, height=6)
         self.error = Label('', role='error')
-        controls = Stack(Button('Select', self.submit), Button('Up', self.up),
-                         Button('Cancel', self.close), horizontal=True, gap=1)
+        controls = Stack(Button(Message('Select'), self.submit), Button(Message('Up'), self.up),
+                         Button(Message('Cancel'), self.close), horizontal=True, gap=1)
         super().__init__(title, Stack(self.location, self.listing, self.name, self.error, controls),
                          Rect(0, 0, 58, 16), default=self.submit)
         self._read(self.directory)
@@ -201,7 +215,7 @@ class FileDialog(Dialog):
             path = self.listing.value
         try:
             if path is None:
-                self.error.text = 'Choose a file or enter a path'
+                self.error.text = Message('Choose a file or enter a path')
                 return
             if path.is_dir() and self.mode != 'directory':
                 self._read(path)
@@ -211,7 +225,7 @@ class FileDialog(Dialog):
                     or (self.mode == 'directory' and path.is_dir())):
                 self._accept(path)
             else:
-                self.error.text = 'The selected path is unavailable'
+                self.error.text = Message('The selected path is unavailable')
         except OSError as error:
             self.error.text = str(error)
 
@@ -219,7 +233,7 @@ class FileDialog(Dialog):
 class DirectoryDialog(FileDialog):
     """A file selector restricted to directories."""
 
-    def __init__(self, title: str = 'Choose directory', **options):
+    def __init__(self, title: str = Message('Choose directory'), **options):
         """Open a directory selector."""
         super().__init__(title, mode='directory', **options)
 
@@ -262,7 +276,7 @@ class HelpBook:
             nonlocal current
             current = key
             page = self.topics[key]
-            dialog.title = f'Help · {page.title}'
+            dialog.title = Message('Help · {title}', title=page.title)
             body.text = page.text
             body.top = body.left = 0
             links.set_items(link for link in page.links if link in self.topics)
@@ -280,9 +294,10 @@ class HelpBook:
         body = TextView(grow=1, height=5)
         links = ListBox(label=lambda key: self.topics[key].title,
                         on_activate=follow, height=3)
-        actions = Stack(Button('Back', back), Button('Close', lambda: dialog.close()),
+        actions = Stack(Button(Message('Back'), back),
+                        Button(Message('Close'), lambda: dialog.close()),
                         horizontal=True, gap=1)
-        dialog = Dialog('Help', Stack(body, links, actions), Rect(0, 0, 64, 16))
+        dialog = Dialog(Message('Help'), Stack(body, links, actions), Rect(0, 0, 64, 16))
         show(current)
         app.add(dialog)
         return dialog
@@ -296,14 +311,16 @@ class ThemeDialog(Dialog):
         self.desktop = app
         self.original = app.theme
         self._followed_display = app.follows_display_appearance
-        self.roles = ListBox(app.theme.roles, height=5, grow=1, on_change=lambda _: self._sync())
-        self.channels = RadioGroup(('Foreground', 'Background'), on_change=lambda _: self._sync())
+        self.roles = ListBox(app.theme.roles, label=Message, height=5, grow=1,
+                             on_change=lambda _: self._sync())
+        self.channels = RadioGroup((Message('Foreground'), Message('Background')),
+                                   on_change=lambda _: self._sync())
         self.rgb = InputLine(validator=RegexValidator(
-            r'#[0-9a-fA-F]{6}|', 'Enter #RRGGBB or leave blank for the terminal default'),
+            r'#[0-9a-fA-F]{6}|', Message('Enter #RRGGBB or leave blank for the terminal default')),
             on_submit=lambda _: self.preview())
-        actions = Stack(Button('Preview', self.preview), Button('Apply', self.apply),
-                        Button('Cancel', self.close), horizontal=True, gap=1)
-        super().__init__('Appearance', Stack(self.roles, self.channels, self.rgb, actions),
+        actions = Stack(Button(Message('Preview'), self.preview), Button(Message('Apply'), self.apply),
+                        Button(Message('Cancel'), self.close), horizontal=True, gap=1)
+        super().__init__(Message('Appearance'), Stack(self.roles, self.channels, self.rgb, actions),
                          Rect(0, 0, 50, 15), default=self.preview, on_close=self._closed)
         self._sync()
 

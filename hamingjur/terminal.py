@@ -44,7 +44,7 @@ from wcwidth import list_term_programs
 from .color import COLOR_DISTANCE_ALGORITHMS, xterm256gray_from_rgb, xterm256color_from_rgb
 from .kitty import Kitty
 from .shell import Shell
-from .silkie import Accessibility, Silkie, Channel, AgentChannel, DisplayChannel
+from .silkie import Accessibility, Silkie, Channel, AgentChannel, DisplayChannel, SpeechChannel
 from .silkie import depth as depth_sequence
 from .window import Size, Window
 from .graphics import Graphics
@@ -321,7 +321,7 @@ class Terminal:
 
     @property
     def display(self) -> DisplayChannel:
-        """Silkie display capabilities, desktop appearance, and change reporting."""
+        """Silkie display capabilities, desktop preferences, and change reporting."""
         return self.silkie.display
 
     @property
@@ -336,8 +336,13 @@ class Terminal:
 
     @property
     def accessibility(self) -> Accessibility:
-        """Silkie image placement annotations and their acknowledgements."""
+        """Silkie image and text annotations and screen-reader announcements."""
         return self.silkie.accessibility
+
+    @property
+    def speech(self) -> SpeechChannel:
+        """Program-controlled speech and Voice Lock styles on the Silkie host."""
+        return self.silkie.speech
 
     @property
     def ssh_agent(self) -> AgentChannel:

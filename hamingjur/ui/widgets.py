@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Callable, Generic, Iterable, Iterator, TypeVar
 
 from ..keyboard import Keystroke
 from ..line_editor import LineEditor, LineHistory
+from ._i18n import Message
 from .layout import Rect, Surface
 
 if TYPE_CHECKING:
@@ -58,6 +59,7 @@ class Widget:
     """Base for themed, focusable views. Override draw and event handlers."""
 
     focusable = False
+    track_terminal_focus = False
 
     def __init__(self, *, width: int = 1, height: int = 1, grow: int = 0,
                  enabled: bool = True):
@@ -76,6 +78,10 @@ class Widget:
         """Receive the rectangle assigned by the parent."""
         self.bounds = bounds
 
+    def _localize(self, translate: Callable[[str], str], measure: Callable[[str], int]) -> bool:
+        """Update text-dependent measurements, returning whether a width changed."""
+        return False
+
     def draw(self, surface: Surface, focused: Widget | None = None) -> None:
         """Draw onto the supplied clipped area."""
 
@@ -86,6 +92,15 @@ class Widget:
     def on_pointer(self, pointer: Pointer, app: Application) -> bool:
         """Handle a mouse event and return whether it was consumed."""
         return False
+
+    def input_modes(self, terminal, stack) -> None:
+        """Enter scoped terminal modes while this widget owns interactive input."""
+
+    def on_frame(self, now: float) -> float | None:
+        """Advance a focused widget and return its next monotonic deadline."""
+
+    def on_blur(self) -> None:
+        """Cancel transient interaction when this widget loses input ownership."""
 
     def caret_position(self) -> tuple[int, int] | None:
         """Return the editor caret in screen cells when the widget has one."""
@@ -148,6 +163,12 @@ class Group(Widget):
         self.bounds = bounds
         self._layout_stack(horizontal=False, gap=0)
 
+    def _localize(self, translate: Callable[[str], str], measure: Callable[[str], int]) -> bool:
+        changed = False
+        for child in self.children:
+            changed = child._localize(translate, measure) or changed
+        return changed
+
     def _layout_stack(self, *, horizontal: bool, gap: int) -> None:
         area = self.bounds
         children = [child for child in self.children if child.visible]
@@ -209,9 +230,8 @@ class Stack(Group):
 
     def __init__(self, *children: Widget, horizontal: bool = False, gap: int = 0, **options):
         """Set the stack's orientation and spacing."""
-        options.setdefault('width', (sum(child.preferred_width for child in children)
-                                     + gap * max(0, len(children) - 1)) if horizontal else
-                           max((child.preferred_width for child in children), default=0))
+        self._automatic_width = 'width' not in options
+        options.setdefault('width', self._width(children, horizontal, gap))
         options.setdefault('height', max((child.preferred_height for child in children), default=0)
                            if horizontal else sum(child.preferred_height for child in children)
                            + gap * max(0, len(children) - 1))
@@ -220,6 +240,17 @@ class Stack(Group):
             raise ValueError('Gap must be nonnegative')
         self.horizontal = horizontal
         self.gap = gap
+
+    @staticmethod
+    def _width(children: Iterable[Widget], horizontal: bool, gap: int) -> int:
+        widths = [child.preferred_width for child in children]
+        return sum(widths) + gap * max(0, len(widths) - 1) if horizontal else max(widths, default=0)
+
+    def _localize(self, translate: Callable[[str], str], measure: Callable[[str], int]) -> bool:
+        changed = super()._localize(translate, measure)
+        if changed and self._automatic_width:
+            self.preferred_width = self._width(self.children, self.horizontal, self.gap)
+        return changed
 
     def layout(self, bounds: Rect) -> None:
         """Allocate each child along the configured axis."""
@@ -278,17 +309,20 @@ class Panel(Group):
 class Label(Widget):
     """Static text, with a semantic style role."""
 
-    def __init__(self, text: str, *, role: str = 'text', **options):
+    def __init__(self, text: str, *, role: str = 'text',
+                 accessibility_role: str | None = None, **options):
         """Set the text and optional style role."""
         options.setdefault('height', len(text.split('\n')))
         super().__init__(**options)
         self.text = text
         self.role = role
+        self.accessibility_role = accessibility_role
 
     def draw(self, surface: Surface, focused: Widget | None = None) -> None:
         """Draw lines within the allocated area."""
-        for y, line in enumerate(self.text.split('\n', surface.height)[:surface.height]):
-            surface.write(0, y, line, self.role)
+        text = surface.translate(self.text)
+        for y, line in enumerate(text.split('\n', surface.height)[:surface.height]):
+            surface.write(0, y, line, self.role, accessibility_role=self.accessibility_role)
 
 
 class Button(Widget):
@@ -298,16 +332,29 @@ class Button(Widget):
 
     def __init__(self, label: str, action: Callable[[], None], **options):
         """Bind a label to an action."""
+        self._automatic_width = 'width' not in options
         options.setdefault('width', len(label) + 4)
         super().__init__(**options)
         self.label = label
         self.action = action
 
+    def _localize(self, translate: Callable[[str], str], measure: Callable[[str], int]) -> bool:
+        if not self._automatic_width or not isinstance(self.label, Message):
+            return False
+        width = measure(translate(self.label)) + 4
+        changed = width != self.preferred_width
+        self.preferred_width = width
+        return changed
+
     def draw(self, surface: Surface, focused: Widget | None = None) -> None:
         """Draw the button with visible keyboard focus."""
         role = _role(self, focused)
         surface.fill(role)
-        surface.write(0, 0, f'[ {self.label} ]', role)
+        label = surface.translate(self.label)
+        surface.write(0, 0, '[ ', role, accessibility_role='decorative')
+        surface.write(2, 0, label, role)
+        surface.write(2 + surface.measure(label), 0, ' ]', role,
+                      accessibility_role='decorative')
 
     def on_key(self, key: Keystroke | str, app: Application) -> bool:
         """Activate the button from the keyboard."""
@@ -350,7 +397,7 @@ class Checkbox(Button):
         """Draw the marker and label."""
         role = _role(self, focused)
         mark = surface.appearance.check if self.checked else ' '
-        surface.write(0, 0, f'[{mark}] {self.label}', role)
+        surface.write(0, 0, f'[{mark}] {surface.translate(self.label)}', role)
 
 
 class InputLine(Widget):
@@ -576,7 +623,8 @@ class ListBox(Widget, Generic[T]):
 
     def __init__(self, items: Iterable[T] = (), *, label: Callable[[T], str] = str,
                  on_activate: Callable[[T], None] | None = None,
-                 on_change: Callable[[T], None] | None = None, **options):
+                 on_change: Callable[[T], None] | None = None,
+                 accessibility_role: str | None = None, **options):
         """Set items, item formatting, and optional selection callbacks."""
         options.setdefault('height', 3)
         super().__init__(**options)
@@ -584,6 +632,7 @@ class ListBox(Widget, Generic[T]):
         self.label = label
         self.on_activate = on_activate
         self.on_change = on_change
+        self.accessibility_role = accessibility_role
         self.index = 0
         self.offset = 0
         self._search = ''
@@ -641,18 +690,19 @@ class ListBox(Widget, Generic[T]):
             if row + self.offset == self.index:
                 role = 'focus' if focused is self else 'selection'
             surface.write(0, row, ' ' * content, role)
-            surface.write(0, row, self.label(item), role, end=content)
+            surface.write(0, row, self.label(item), role, end=content,
+                          accessibility_role=self.accessibility_role)
         if scrolling:
             self._scroll.set_range(len(self.items), surface.height, self.offset)
             self._scroll.draw(surface.sub(self._scroll.bounds))
 
-    def _find(self, text: str) -> None:
+    def _find(self, text: str, translate: Callable[[str], str]) -> None:
         now = monotonic()
         candidate = (self._search + text if now - self._last_search < 1 else text).casefold()
         self._last_search = now
         for query in (candidate, text.casefold()):
             for index, item in enumerate(self.items):
-                if self.label(item).casefold().startswith(query):
+                if translate(self.label(item)).casefold().startswith(query):
                     self._search = query
                     self.select(index)
                     return
@@ -677,7 +727,7 @@ class ListBox(Widget, Generic[T]):
             return True
         text = typed_text(key)
         if text:
-            self._find(text)
+            self._find(text, app._translate)
             return True
         return False
 
@@ -715,7 +765,9 @@ class RadioGroup(ListBox[T]):
             selected = self.offset + row == self.index
             marker = '*' if surface.appearance.ascii_only else '•'
             role = 'focus' if focused is self and selected else 'text'
-            surface.write(0, row, f'({marker if selected else " "}) {self.label(item)}', role)
+            label = surface.translate(self.label(item))
+            surface.write(0, row, f'({marker if selected else " "}) {label}', role,
+                          accessibility_role=self.accessibility_role)
 
 
 class TextView(Widget):

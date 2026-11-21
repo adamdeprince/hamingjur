@@ -31,6 +31,9 @@ First-class terminal features
   line editing, keyboard, mouse, focus, paste, and resize events.
 * A terminal desktop with reusable widgets, overlapping windows,
   modal dialogs, menus, and configurable themes in ``hamingjur.ui``.
+* Fixed-step terminal games with action bindings, cameras, sprite atlases and
+  scrolling tile maps in ``hamingjur.game``. Run ``python -m bin.game_crossing``
+  from a checkout to play inside a widget window.
 * Raster and vector images, packed grayscale and RGB565, animations, image placement,
   styled vector text, font resources, HDR, wide gamut color, and image-backed pointers.
 * Pen pressure and tilt, simultaneous contacts, tablet pads, gestures, scrolling,

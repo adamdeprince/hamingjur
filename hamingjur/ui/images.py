@@ -10,6 +10,7 @@ from ..imaging import Transfer
 from ..keyboard import Keystroke
 from ..silkie import ImageAnnotation
 from ..window import Size
+from ._i18n import Message
 from .layout import Canvas, Rect, Surface
 from .widgets import Widget, key_name
 
@@ -51,7 +52,7 @@ class ImageView(Widget):
         """Draw a caption and text fallback before offering the image to the compositor."""
         surface.fill()
         annotation = self.annotation
-        caption = annotation.name or 'Image'
+        caption = annotation.name or Message('Image')
         surface.write(0, 0, caption, 'focus' if focused is self else 'accent')
         text = annotation.description or annotation.details
         if text:

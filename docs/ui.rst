@@ -88,6 +88,13 @@ use the dark palette with slate backgrounds and mint accents. For e-paper,
 widgets follow Silkie's effective e-paper palette. Older Silkie versions that
 report e-paper without a palette use light.
 
+When Silkie requests high contrast, the desktop and windows use pure black
+backgrounds with white text in dark mode, and pure white backgrounds with
+black text in light mode. When Silkie requests color-independent distinctions,
+the automatic palette uses grayscale and status errors get an explicit error
+label. Read the latest display state, including host language preferences,
+through ``app.display_report``.
+
 Pass a theme to ``Application(theme=...)``, or assign one to ``app.theme``, to
 keep a fixed palette. Pass ``None`` to resume following the terminal.
 ``ThemeDialog(app)`` offers a live preview and restores the previous choice on
@@ -120,6 +127,40 @@ with normal Unicode text.
 Use the separate graphics API for retained SVG or its raster fallback.
 See :doc:`images`.
 
+Widget languages
+----------------
+
+The toolkit selects the first language it supports from the terminal's
+reported preference list. It handles regional fallback and the Simplified
+and Traditional Chinese scripts. English preferences use American English
+(``en-us``), which also serves as the fallback when the terminal provides no
+matching preference. Open controls update on a live language change, and
+button widths follow the translated text.
+
+The widget catalog covers all 33 base languages in Apple's list of 48
+macOS system-language entries.
+On Linux, desktop language availability depends on the desktop and its
+installed language packs. The GNOME translation project lists 155 languages
+and variants with teams. Use ``locale -a`` to enumerate installed system
+locales on a particular Linux host.
+`Apple system languages <https://www.apple.com/macos/feature-availability/>`_,
+`GNOME translation teams <https://l10n.gnome.org/languages/>`_.
+
+The translation catalog covers standard buttons, file and directory dialogs,
+help chrome, the appearance editor, input history, image review, and
+toolkit validation and status messages. Bundled language codes are
+``ar``, ``ca``, ``cs``, ``da``, ``de``, ``el``, ``en-us``, ``es``,
+``fi``, ``fr``, ``he``, ``hi``, ``hr``, ``hu``, ``id``, ``it``,
+``ja``, ``ko``, ``ms``, ``nb``, ``nl``, ``pl``, ``pt``, ``pt-br``,
+``ro``, ``ru``, ``sk``, ``sl``, ``sv``, ``th``, ``tr``, ``uk``,
+``vi``, ``zh-hans``, and ``zh-hant``. The terminal handles glyph shaping
+and script presentation.
+
+Read ``app.language`` for the selected widget locale and
+``app.display_report.languages`` for the raw host preference order, when a
+display report is available. Applications supply translations for their
+own menus, document content, file names, and custom labels.
+
 Standard widgets
 ----------------
 
@@ -149,7 +190,20 @@ desktop without entering interactive terminal modes.
 Accessibility
 -------------
 
-Use ``Theme.high_contrast()`` for strong foreground and background separation.
+On Silkie with ``a11y.2``, ``Application.run()`` exposes form prompts,
+history suggestions and status text to the native screen reader,
+omits decorative window chrome from its text, and keeps the terminal
+caret visible. New errors are sent as one-shot screen-reader announcements.
+In a custom event loop, enter ``app.screen_reader()`` inside the interactive
+screen and cbreak contexts. Applications can give a ``Label`` an
+``accessibility_role`` such as ``prompt`` or ``status``.
+
+For explicit, program-controlled speech and Voice Lock, use
+``term.speech``. The widget path uses the terminal's native screen-reader
+bridge. See :doc:`silkie_extensions`.
+
+Use ``Theme.high_contrast()`` for strong foreground and background separation
+with a dark background, or ``Theme.high_contrast(light=True)`` for a light one.
 The terminal cursor tracks the focused editor's caret so Silkie's **Center on
 Text Cursor** command follows the insertion point. Pane magnification keeps
 the same cell layout. Raster widgets reuse their source image at the new pixel

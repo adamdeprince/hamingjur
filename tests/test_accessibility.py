@@ -56,6 +56,73 @@ def test_annotation_correlates_reply_and_keeps_input(term):
     assert 'op=set-image:i=17:p=3:name=Chart' in term.stream.getvalue()
 
 
+def test_accessibility_v2_wire_format_and_large_text():
+    """Encode one-based spans and preserve long, percent-encoded Unicode text."""
+    label = 'Search: café; 東京 50%' * 5000
+    event = parse_event(silkie.annotate_text(0xffffffff, (1, 6), (2, 1), role='prompt',
+                                           label=label, request_id=0))
+    assert {key: value for key, value in event.fields.items() if key != 'label'} == {
+        'v': '2', 'op': 'set-text', 'range': '4294967295', 'row': '1', 'column': '6',
+        'end_row': '2', 'end_column': '1', 'role': 'prompt',
+        'id': '0',
+    }
+    assert unquote(event.fields['label']) == label
+    assert parse_event(silkie.clear_text_annotation(7)).fields == {
+        'v': '2', 'op': 'clear-text', 'range': '7',
+    }
+    assert parse_event(silkie.announce('Search failed', priority='assertive')).fields == {
+        'v': '2', 'op': 'announce', 'text': 'Search%20failed', 'priority': 'assertive',
+    }
+
+
+@pytest.mark.parametrize('arguments', [
+    {'range_id': 0}, {'range_id': 1 << 32}, {'start': (1, 0)}, {'end': (1, 1)},
+    {'end': (1, 1 << 31)}, {'role': 'title'}, {'label': 'line\nbreak'}, {'request_id': 1 << 31},
+])
+def test_text_annotation_rejects_invalid_fields(arguments):
+    """Reject inputs the terminal would ignore or that cannot describe a range."""
+    fields = {'range_id': 1, 'start': (1, 1), 'end': (1, 2), 'role': 'status'}
+    with pytest.raises(ValueError):
+        silkie.annotate_text(**{**fields, **arguments})
+
+
+@pytest.mark.parametrize('text,priority', [('', 'polite'), ('\x1b', 'polite'), ('hi', 'loud')])
+def test_announcement_rejects_invalid_fields(text, priority):
+    """Require nonempty, single-line text and a supported priority."""
+    with pytest.raises(ValueError):
+        silkie.announce(text, priority=priority)
+
+
+@pytest.mark.parametrize('extensions,supported', [('a11y.1', False), ('a11y.2,a11y.1', True)])
+def test_accessibility_version_discovery(term, monkeypatch, extensions, supported):
+    """Use the highest advertised version, regardless of advertisement order."""
+    caps = silkie.Capabilities(parse_event(silkie.command('caps', 'cap', ext=extensions)))
+    monkeypatch.setattr(term.silkie, 'capabilities', lambda *args, **kwargs: caps)
+    assert term.accessibility.supported()
+    assert term.accessibility.supported(version=2) is supported
+
+
+def test_text_acknowledgements_match_reply_version_and_id(term):
+    """Leave old-version replies, other acknowledgements and input on the stream."""
+    term._is_a_tty = True
+    term._keyboard_fd = None
+    old_reply = silkie.command('a11y', 'ack', id=1, status='OK')
+    other_reply = '\x1b]777;a11y;v=2:op=ack:id=77:status=ENOENT\x1b\\'
+    reply = '\x1b]777;a11y;status=ENOTSUP:v=2:id=1:op=ack\x07'
+    term.ungetch('x' + old_reply + other_reply + reply + '\x1b[1;1R')
+    result = term.accessibility.announce('Search failed', timeout=0)
+    assert isinstance(result, AccessibilityAck) and result.status == 'ENOTSUP'
+    assert 'v=2:op=announce:text=Search%20failed:priority=polite:id=1' in term.stream.getvalue()
+    assert term.inkey(timeout=0) == 'x'
+    assert term.inkey(timeout=0).protocol_event.raw == old_reply
+    assert term.inkey(timeout=0).protocol_event.raw == other_reply
+    term.accessibility.set_text(1, (1, 1), (1, 3), role='decorative', wait=False)
+    term.accessibility.clear_text(1, wait=False)
+    assert term.stream.getvalue().endswith(
+        silkie.annotate_text(1, (1, 1), (1, 3), role='decorative') +
+        silkie.clear_text_annotation(1))
+
+
 def test_pane_actions_use_the_terminal_connection(term, monkeypatch):
     """Accessibility actions send Silkie's published payloads over the PTY."""
     import json

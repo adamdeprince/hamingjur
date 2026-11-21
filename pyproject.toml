@@ -7,6 +7,7 @@ include = ['hamingjur*']
 
 [tool.setuptools.package-data]
 hamingjur = ['py.typed', '*.txt']
+'hamingjur.ui' = ['translations.json']
 
 [tool.setuptools.dynamic]
 version = {attr = 'hamingjur.__version__'}

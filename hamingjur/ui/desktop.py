@@ -1,17 +1,20 @@
 """Terminal desktop, overlapping windows, commands and menus."""
 from __future__ import annotations
 
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, replace
 from math import isqrt
 from time import monotonic
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Iterator
 
 from .. import Terminal
+from ..dec_modes import DecPrivateMode
 from ..keyboard import Keystroke
 from ..protocols import DisplayAppearance, DisplayEvent
+from ._i18n import DEFAULT_LANGUAGE, JoinedMessage, Message, select_language, translate
+from ._screen_reader import ScreenReader
 from .images import ImageView, _DesktopImages
-from .layout import Appearance, Canvas, Rect, Row, Surface, Theme
+from .layout import Appearance, Canvas, GraphicLayer, Rect, Row, Surface, Theme
 from .widgets import InputLine, ListBox, Pointer, Widget, key_name
 
 Action = Callable[[], None]
@@ -96,8 +99,9 @@ class _MenuPage:
         self.first = min(max(0, len(self.items) - rows), max(
             min(self.first, self.selected), self.selected - rows + 1))
         horizontal = surface.appearance.frame[4]
-        surface.write(0, 0, horizontal * surface.width, 'bar')
-        surface.write(0, surface.height - 1, horizontal * surface.width, 'bar')
+        surface.write(0, 0, horizontal * surface.width, 'bar', accessibility_role='decorative')
+        surface.write(0, surface.height - 1, horizontal * surface.width, 'bar',
+                      accessibility_role='decorative')
         if self.first:
             surface.write(0, 0, '^', 'bar')
         if self.first + rows < len(self.items):
@@ -105,7 +109,8 @@ class _MenuPage:
         for y, item in enumerate(self.items[self.first:self.first + rows], 1):
             index = self.first + y - 1
             if not item.label:
-                surface.write(1, y, horizontal * max(0, surface.width - 2), 'menu')
+                surface.write(1, y, horizontal * max(0, surface.width - 2), 'menu',
+                              accessibility_role='decorative')
                 continue
             role = 'focus' if index == self.selected else 'menu' if item.enabled else 'disabled'
             suffix = surface.appearance.arrow if item.items else item.shortcut
@@ -288,8 +293,9 @@ class Window:
     def __init__(self, title: str, content: Widget, bounds: Rect = Rect(3, 2, 48, 14), *,
                  minimum: tuple[int, int] = (12, 4), resizable: bool = True,
                  closable: bool = True, on_close: Callable[[object], None] | None = None,
-                 help_topic: str | None = None):
+                 help_topic: str | None = None, framed: bool = True):
         """Create a window whose requested bounds are fitted to the desktop."""
+        self.framed = framed
         self.title = title
         self.content = content
         self.bounds = bounds
@@ -303,12 +309,16 @@ class Window:
         self.screen_bounds = Rect(0, 0, 0, 0)
         self.focused: Widget | None = None
         self.app: Application | None = None
+        self._localized_language: str | None = None
 
     def layout(self, area: Rect) -> None:
         """Fit the window to the current screen and update focus."""
+        if self.app is not None and self._localized_language != self.app.language:
+            self.content._localize(self.app._translate, self.app.terminal.length)
+            self._localized_language = self.app.language
         minimum = (1, 1) if self._tiled else self.minimum
         self.screen_bounds = area if self.maximized else self.bounds.fit(area, minimum)
-        self.content.layout(self.screen_bounds.inset())
+        self.content.layout(self.screen_bounds.inset() if self.framed else self.screen_bounds)
         choices = list(self.content.focus_order())
         if self.focused not in choices:
             self.focused = choices[0] if choices else None
@@ -330,21 +340,28 @@ class Window:
             return
         surface = canvas.surface(box)
         surface.fill()
+        if not self.framed:
+            self.content.draw(surface, self.focused if active else None)
+            return
         style = 'title' if active else 'border'
         top_left, top_right, bottom_left, bottom_right, across, side = surface.appearance.frame
         horizontal = across * max(0, box.width - 2)
-        surface.write(0, 0, top_left + horizontal + top_right, style)
-        surface.write(0, box.height - 1, bottom_left + horizontal + bottom_right, 'border')
+        surface.write(0, 0, top_left + horizontal + top_right, style,
+                      accessibility_role='decorative')
+        surface.write(0, box.height - 1, bottom_left + horizontal + bottom_right, 'border',
+                      accessibility_role='decorative')
         for y in range(1, box.height - 1):
-            surface.write(0, y, side, 'border')
-            surface.write(box.width - 1, y, side, 'border')
+            surface.write(0, y, side, 'border', accessibility_role='decorative')
+            surface.write(box.width - 1, y, side, 'border', accessibility_role='decorative')
         if box.width > 4 and box.height > 1:
             close = f'[{surface.appearance.close}]' if self.closable else ''
             if close:
                 surface.write(box.width - 4, 0, close, style)
-            surface.write(2, 0, f' {self.title} ', style, end=box.width - len(close) - 1)
+            surface.write(2, 0, f' {surface.translate(self.title)} ', style,
+                          end=box.width - len(close) - 1)
             if self.resizable:
-                surface.write(box.width - 2, box.height - 1, surface.appearance.grip, style)
+                surface.write(box.width - 2, box.height - 1, surface.appearance.grip, style,
+                              accessibility_role='decorative')
         self.content.draw(surface.sub(self.content.bounds), self.focused if active else None)
 
     def close(self, result: object = None) -> None:
@@ -396,19 +413,19 @@ class Application:
 
     def __init__(self, terminal: Terminal | None = None, *, theme: Theme | None = None,
                  appearance: Appearance | None = None, menus: Iterable[MenuItem] = (),
-                 status: Iterable[StatusItem] = (), mouse: bool | None = None):
+                 status: Iterable[StatusItem] = (), mouse: bool | None = None, bars: bool = True):
         """Bind a terminal and configure the desktop's appearance and commands."""
         self.terminal = terminal if terminal is not None else Terminal()
         self._theme_override = theme
-        self._dark_theme = Theme()
-        self._light_theme = Theme(light=True)
-        self._display_appearance = DisplayAppearance.NO_PREFERENCE
-        self._eink_scheme: DisplayAppearance | None = None
+        self._display_themes: dict[tuple[bool, bool, bool], Theme] = {}
+        self._display_report: DisplayEvent | None = None
+        self._language = DEFAULT_LANGUAGE
         self._display_poll_on_resize = False
         self.appearance = (appearance if appearance is not None
                            else Appearance.for_terminal(self.terminal))
         self.mouse = not self.appearance.ascii_only if mouse is None else mouse
         self.menus = MenuBar(menus)
+        self.bars = bars
         self.status_items = tuple(status)
         self.windows: list[Window] = []
         self.status = ''
@@ -427,6 +444,11 @@ class Application:
         self._last_click: tuple[float, int, int] | None = None
         self._size = Rect(0, 0, 0, 0)
         self._images = _DesktopImages(self.terminal)
+        self._screen_reader = ScreenReader(self.terminal)
+        self._layers: set[GraphicLayer] = set()
+        self._owner: Widget | None = None
+        self._terminal_focused = True
+        self._deadline: float | None = None
         self._cursor_xy: tuple[int, int] | None = None
 
     @property
@@ -434,13 +456,22 @@ class Application:
         """Return the explicit palette or the palette for the reported display preference."""
         if self._theme_override is not None:
             return self._theme_override
-        if (self._eink_scheme or self._display_appearance) == DisplayAppearance.LIGHT:
-            return self._light_theme
-        return self._dark_theme
+        report = self._display_report
+        scheme = report.eink_scheme if report is not None else None
+        if scheme is None and report is not None and report.fields.get('kind') == 'eink':
+            scheme = DisplayAppearance.LIGHT
+        light = (scheme or self.display_appearance) == DisplayAppearance.LIGHT
+        high_contrast = report.high_contrast if report is not None else False
+        grayscale = report.differentiate_without_color if report is not None else False
+        key = light, high_contrast, grayscale
+        if key not in self._display_themes:
+            palette = Theme.high_contrast(light=light) if high_contrast else Theme(light=light)
+            self._display_themes[key] = palette.grayscale() if grayscale else palette
+        return self._display_themes[key]
 
     @theme.setter
     def theme(self, theme: Theme | None) -> None:
-        """Set a palette, or pass None to follow the terminal's display appearance."""
+        """Set a palette, or pass None to follow the terminal's display preferences."""
         self._theme_override = theme
 
     @property
@@ -451,7 +482,21 @@ class Application:
     @property
     def display_appearance(self) -> DisplayAppearance:
         """Return the last reported desktop appearance."""
-        return self._display_appearance
+        report = self._display_report
+        return report.appearance if report is not None else DisplayAppearance.NO_PREFERENCE
+
+    @property
+    def display_report(self) -> DisplayEvent | None:
+        """Return the most recent display report, if one was received."""
+        return self._display_report
+
+    @property
+    def language(self) -> str:
+        """Return the language selected for the desktop's built-in controls."""
+        return self._language
+
+    def _translate(self, text: str) -> str:
+        return translate(text, self._language)
 
     @property
     def active_window(self) -> Window | None:
@@ -461,7 +506,9 @@ class Application:
     @property
     def work_area(self) -> Rect:
         """Return the area below the menu and above the status line."""
-        return Rect(0, 1, max(0, self.terminal.width), max(0, self.terminal.height - 2))
+        margin = int(self.bars)
+        return Rect(0, margin, max(0, self.terminal.width),
+                    max(0, self.terminal.height - 2 * margin))
 
     def bind(self, shortcut: str, action: Action) -> None:
         """Bind a shortcut using names such as Ctrl+O, Alt+F, or F5."""
@@ -489,7 +536,9 @@ class Application:
             self.windows.append(window)
             self.menus.close()
         window.app = self
+        window._localized_language = None
         window.layout(area)
+        self._track_focus()
         return window
 
     def close(self, window: Window, result: object = None) -> None:
@@ -501,6 +550,7 @@ class Application:
         self._captured = None
         if self._moving and self._moving.window is window:
             self._moving = None
+        self._track_focus()
         if window.on_close:
             window.on_close(result)
 
@@ -590,7 +640,12 @@ class Application:
                 x = 0
             surface.write(x, 0, ' ' * max(0, surface.width - x),
                           'error' if self.status_error else 'bar')
-            surface.write(x + 1, 0, self.status, 'error' if self.status_error else 'bar')
+            status = self.status
+            if (self.status_error and self._display_report
+                    and self._display_report.differentiate_without_color):
+                status = Message('Error: {message}', message=status)
+            surface.write(x + 1, 0, status, 'error' if self.status_error else 'bar',
+                          accessibility_role='status')
 
     def _cursor_position(self, screen: Rect) -> tuple[int, int] | None:
         if self.menus.open and self.menus._pages[-1].selected >= 0:
@@ -615,30 +670,64 @@ class Application:
             return window.screen_bounds.x, window.screen_bounds.y
         return (0, 0) if screen.width and screen.height else None
 
+    def _input_owner(self) -> Widget | None:
+        window = self.active_window
+        if window and self._terminal_focused and not self.menus.open and not self._moving:
+            return window.focused
+        return None
+
+    def _track_focus(self) -> Widget | None:
+        owner = self._input_owner()
+        if self._owner is not owner:
+            if self._owner is not None:
+                self._owner.on_blur()
+                if self._captured is self._owner:
+                    self._captured = None
+            self._owner = owner
+        return owner
+
     def draw(self) -> Canvas:
         """Compose and present the current screen, returning the rendered cells."""
         bounds = Rect(0, 0, max(0, self.terminal.width), max(0, self.terminal.height))
-        canvas = Canvas(bounds, self.appearance, self.terminal)
+        canvas = Canvas(bounds, self.appearance, self.terminal, translate=self._translate,
+                        accessibility=self._screen_reader.enabled)
         area = self.work_area
-        self.menus.draw_bar(canvas.surface(Rect(0, 0, bounds.width, min(1, bounds.height))))
         for window in self.windows:
             window.layout(area)
+        owner = self._track_focus()
+        self._deadline = owner.on_frame(monotonic()) if owner else None
+        if self.bars:
+            self.menus.draw_bar(canvas.surface(Rect(0, 0, bounds.width, min(1, bounds.height))))
+        for window in self.windows:
             if self.appearance.shadow and not window.maximized:
                 box = window.screen_bounds
                 shadow = Rect(box.x + 1, box.y + 1, box.width, box.height)
                 canvas.surface(shadow.intersection(area)).fill('shadow')
             window.draw(canvas, window is self.active_window)
-        if bounds.height > 1:
+        if self.bars and bounds.height > 1:
             self._draw_status(canvas.surface(Rect(0, bounds.height - 1, bounds.width, 1)))
         self.menus.draw_dropdowns(canvas, area)
+        for layer in self._layers - canvas.layers.keys():
+            layer.release()
+            self._layers.remove(layer)
         self._images.sync(canvas)
-        if self._size != bounds or self._visuals != (self.theme, self.appearance):
+        for layer in canvas.layers:
+            self._layers.add(layer)
+            try:
+                layer.present(canvas)
+            except Exception:
+                layer.release()
+                raise
+        theme = self.theme
+        if self._size != bounds or self._visuals != (theme, self.appearance):
             self._previous = None
         cursor = self._cursor_position(bounds)
-        canvas.present(self.theme, self._previous, cursor=cursor, previous_cursor=self._cursor_xy)
+        canvas.present(theme, self._previous, cursor=cursor, previous_cursor=self._cursor_xy)
+        error = self.status if self.status_error and self.bars else None
+        self._screen_reader.sync(canvas, self._previous, error)
         self._cursor_xy = cursor
         self._previous, self._size = canvas.rows, bounds
-        self._visuals = self.theme, self.appearance
+        self._visuals = theme, self.appearance
         return canvas
 
     @property
@@ -651,13 +740,13 @@ class Application:
         from .dialogs import message_box
 
         annotation = view.annotation
-        return message_box(self, annotation.name or 'Image', self._image_description(view))
+        return message_box(self, annotation.name or Message('Image'), self._image_description(view))
 
     @staticmethod
     def _image_description(view: ImageView) -> str:
         annotation = view.annotation
         text = [annotation.description, annotation.details]
-        return '\n\n'.join(filter(None, text)) or 'No description provided.'
+        return '\n\n'.join(filter(None, text)) or Message('No description provided.')
 
     def review_images(self, *, include_decorative: bool = False) -> Dialog:
         """Review the desktop's visible image descriptions, including on text-only terminals."""
@@ -668,12 +757,18 @@ class Application:
             annotation = view.annotation
             if annotation.purpose == 'decorative' and not include_decorative:
                 continue
-            entries.append(f'{annotation.name or "Image"}\n{self._image_description(view)}')
-        return message_box(self, 'Image descriptions', '\n\n'.join(entries) or 'No visible images.')
+            entries.append(JoinedMessage('\n', (
+                annotation.name or Message('Image'), self._image_description(view),
+            )))
+        return message_box(self, Message('Image descriptions'),
+                           JoinedMessage('\n\n', entries) if entries else Message('No visible images.'))
 
     def release_images(self) -> None:
         """Release terminal placements when using a custom event loop."""
         self._images.clear()
+        for layer in self._layers:
+            layer.release()
+        self._layers.clear()
 
     def _begin_move(self, window: Window, *, resize: bool,
                     anchor: tuple[int, int] | None = None) -> None:
@@ -681,7 +776,7 @@ class Application:
             self._moving = _Move(window, window.bounds, window.screen_bounds,
                                  resize, window._tiled, anchor)
             if anchor is None:
-                self.set_status('Arrow keys adjust  Enter accepts  Esc cancels')
+                self.set_status(Message('Arrow keys adjust  Enter accepts  Esc cancels'))
 
     def _move_by(self, dx: int, dy: int, relative: bool) -> None:
         assert self._moving is not None
@@ -739,8 +834,9 @@ class Application:
                 return True
         if modal:
             return False
-        if name in self._bindings:
-            self._bindings[name]()
+        shortcut = name or getattr(key, 'value', str(key)).upper()
+        if shortcut in self._bindings:
+            self._bindings[shortcut]()
             return True
         for item in self.status_items:
             if _chord(item.shortcut) == name:
@@ -770,7 +866,7 @@ class Application:
                      if window.screen_bounds.contains(pointer.x, pointer.y)), None)
 
     def _chrome(self, window: Window, pointer: Pointer) -> bool:
-        if pointer.button != 'LEFT' or pointer.kind not in {'press', 'double'}:
+        if not window.framed or pointer.button != 'LEFT' or pointer.kind not in {'press', 'double'}:
             return False
         box = window.screen_bounds
         if pointer.y == box.y:
@@ -804,7 +900,7 @@ class Application:
         if not modal and self.menus.on_pointer(pointer):
             return True
         pressed = pointer.kind in {'press', 'double'}
-        if not modal and pressed and pointer.y == self._size.height - 1:
+        if self.bars and not modal and pressed and pointer.y == self._size.height - 1:
             for left, right, item in self._status_buttons:
                 if left <= pointer.x < right:
                     item.action()
@@ -842,18 +938,30 @@ class Application:
 
     def dispatch(self, event: Keystroke | str | Pointer | DisplayEvent) -> bool:
         """Process an input or display event independently of the terminal loop."""
+        self._track_focus()
+        if isinstance(event, Keystroke) and event.name in ('FOCUS_OUT', 'FOCUS_IN'):
+            self._terminal_focused = event.name == 'FOCUS_IN'
+            self._track_focus()
+            return True
         if isinstance(event, Keystroke):
             report = event.protocol_event
+            if report and report.protocol == 'graphics' and report.payload != 'OK':
+                image_id = report.integer('i')
+                if image_id is not None:
+                    for layer in self._layers:
+                        layer.graphics_error(image_id, report.payload)
             if isinstance(report, DisplayEvent):
                 event = report
             elif (event.name or '').startswith('MOUSE_'):
                 event = self._from_mouse(event)
         if isinstance(event, DisplayEvent):
-            self._display_appearance = event.appearance
-            self._eink_scheme = event.eink_scheme
-            if self._eink_scheme is None and event.fields.get('kind') == 'eink':
-                self._eink_scheme = DisplayAppearance.LIGHT
+            self._display_report = event
+            self._language = select_language(event.languages)
             return True
+        if not self._terminal_focused:
+            if isinstance(event, str) and key_name(event) == 'RESIZE_EVENT':
+                return self._key(event)
+            return False
         if isinstance(event, Pointer):
             if event.x < 0 or event.y < 0:
                 return False
@@ -872,7 +980,7 @@ class Application:
         """Choose a previous entry for an input field in a modal history window."""
         entries = field.editor.history.entries
         if not entries:
-            self.set_status('No input history')
+            self.set_status(Message('No input history'))
             return
         dialog: Dialog
 
@@ -880,8 +988,10 @@ class Application:
             field.value = value
             dialog.close(value)
 
-        content = ListBox(reversed(entries), on_activate=choose, grow=1)
-        dialog = Dialog('Input history', content, Rect(0, 0, 46, min(len(entries) + 2, 12)))
+        content = ListBox(reversed(entries), on_activate=choose, grow=1,
+                          accessibility_role='completion')
+        dialog = Dialog(Message('Input history'), content,
+                        Rect(0, 0, 46, min(len(entries) + 2, 12)))
         self.add(dialog)
 
     def _read_display(self) -> bool:
@@ -902,6 +1012,24 @@ class Application:
             return
         self._display_poll_on_resize = not bool(granted)
 
+    @contextmanager
+    def screen_reader(self) -> Iterator[bool]:
+        """Expose native screen-reader text roles in an interactive screen context."""
+        reader = self._screen_reader
+        if reader.enabled or self.appearance.ascii_only:
+            yield reader.enabled
+            return
+        if not self.terminal.accessibility.supported(version=2):
+            yield False
+            return
+        reader.enabled = True
+        try:
+            with self.terminal.dec_modes_enabled(DecPrivateMode.DECTCEM):
+                yield True
+        finally:
+            reader.enabled = False
+            reader.clear()
+
     def run(self) -> object:
         """Enter terminal modes until stop is called, then restore them on exit."""
         term = self.terminal
@@ -911,25 +1039,53 @@ class Application:
             raise RuntimeError('The application is already running')
         self._closed, self._running = False, True
         self.result, self._previous = None, None
-        self._display_appearance = DisplayAppearance.NO_PREFERENCE
-        self._eink_scheme = None
+        self._display_report = None
+        self._language = DEFAULT_LANGUAGE
         try:
             with ExitStack() as stack:
                 stack.enter_context(term.fullscreen())
                 stack.callback(self.release_images)
                 stack.enter_context(term.cbreak())
                 stack.enter_context(term.keypad())
-                stack.enter_context(term.hidden_cursor())
                 if self.mouse:
                     stack.enter_context(term.mouse_enabled(report_drag=True))
                 if not self.appearance.ascii_only:
                     stack.enter_context(term.bracketed_paste())
                     stack.enter_context(term.notify_on_resize())
                     self._watch_display(stack)
+                    if self._display_report is not None:
+                        stack.enter_context(self.screen_reader())
+                if not self._screen_reader.enabled:
+                    stack.enter_context(term.hidden_cursor())
+                modes = stack.enter_context(ExitStack())
+                watching_focus = False
+                previous_owner = None
                 while not self._closed:
+                    self._track_focus()
+                    if self._owner and self._owner.track_terminal_focus and not watching_focus:
+                        stack.enter_context(term.focus_events())
+                        watching_focus = True
+                    if self._owner is not previous_owner:
+                        modes.close()
+                        previous_owner = self._owner
+                        if self._owner:
+                            self._owner.input_modes(term, modes)
                     self.draw()
-                    self.dispatch(term.inkey())
+                    if self._owner is not previous_owner:
+                        continue
+                    if self._closed:
+                        break
+                    if self._deadline is None:
+                        event = term.inkey()
+                    else:
+                        event = term.inkey(timeout=max(0.0, self._deadline - monotonic()))
+                    if event or event.name or event.protocol_event:
+                        self.dispatch(event)
         finally:
+            if self._owner is not None:
+                self._owner.on_blur()
+            self._owner = None
+            self._terminal_focused = True
             self._running = False
             self._display_poll_on_resize = False
             self._moving = None

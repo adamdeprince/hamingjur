@@ -8,6 +8,7 @@ Welcome to Hamingjur documentation!
    intro
    features
    ui
+   game
    images
    silkie_extensions
    window

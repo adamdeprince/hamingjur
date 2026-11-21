@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 import uuid
 import contextlib
-from dataclasses import dataclass
+from dataclasses import dataclass, fields as dataclass_fields
 from enum import IntFlag
 from typing import TYPE_CHECKING, Union, Iterator, Optional
 from urllib.parse import quote
@@ -18,6 +18,8 @@ from .protocols import (ST,
                         DisplayEvent,
                         Field,
                         ProtocolEvent,
+                        SpeechAck,
+                        SpeechCapabilities,
                         b64,
                         token,
                         integer,
@@ -51,8 +53,12 @@ def command(selector: str, operation: str, **fields: Field) -> str:
     """
     if fields.keys() & {'v', 'op'}:
         raise ValueError('v and op are controlled by command()')
+    return _command(selector, operation, 1, fields)
+
+
+def _command(selector: str, operation: str, version: int, fields: dict[str, Field]) -> str:
     return f'\x1b]777;{token(selector)};' + encode_fields(
-        {'v': 1, 'op': token(operation), **fields}) + ST
+        {'v': version, 'op': token(operation), **fields}) + ST
 
 
 def depth(millidegrees: Optional[int] = None, *, pixels: Optional[float] = None,
@@ -109,12 +115,12 @@ class ImageAnnotation:
 
 def _validate_annotation_text(text: str, multiline: bool) -> None:
     if not isinstance(text, str):
-        raise TypeError('Image annotation fields must be text')
+        raise TypeError('Accessibility fields must be text')
     for char in text:
         code = ord(char)
         forbidden = code < 32 and not (multiline and char in '\t\n')
         if forbidden or 127 <= code <= 159 or 0xd800 <= code <= 0xdfff:
-            raise ValueError('Image annotation text must be valid UTF-8 with no control characters')
+            raise ValueError('Accessibility text must be valid UTF-8 with no control characters')
 
 
 def _annotation_ids(image_id: int, placement_id: int, request_id: Optional[int]
@@ -145,6 +151,128 @@ def clear_image_annotation(image_id: int, placement_id: int, *,
     return command('a11y', 'clear-image', **_annotation_ids(image_id, placement_id, request_id))
 
 
+def _text_command(operation: str, request_id: Optional[int], **fields: Field) -> str:
+    if request_id is not None:
+        fields['id'] = integer(request_id, 'request_id', 0, 0x7fffffff)
+    return _command('a11y', operation, 2, fields)
+
+
+def annotate_text(range_id: int, start: tuple[int, int], end: tuple[int, int], *,
+                  role: str, label: str = '', request_id: Optional[int] = None) -> str:
+    """
+    Label a screen range with one-based (row, column) coordinates.
+
+    The start is inclusive and the end is exclusive. The end column can be one past
+    the last column. The terminal checks the range against the active screen grid.
+
+    :raises ValueError: If the ID, coordinates, role or label are invalid.
+    """
+    row, column = start
+    end_row, end_column = end
+    fields: dict[str, Field] = {
+        'range': integer(range_id, 'range_id', 1, 0xffffffff),
+        'row': integer(row, 'row', 1, 0x7fffffff),
+        'column': integer(column, 'column', 1, 0x7fffffff),
+        'end_row': integer(end_row, 'end_row', 1, 0x7fffffff),
+        'end_column': integer(end_column, 'end_column', 1, 0x7fffffff),
+    }
+    if (row, column) >= (end_row, end_column):
+        raise ValueError('The text range must end after its start')
+    if role not in ('prompt', 'status', 'completion', 'decorative'):
+        raise ValueError('Unknown text annotation role')
+    fields['role'] = role
+    _validate_annotation_text(label, False)
+    if label:
+        fields['label'] = quote(label, safe='')
+    return _text_command('set-text', request_id, **fields)
+
+
+def clear_text_annotation(range_id: int, *, request_id: Optional[int] = None) -> str:
+    """
+    Encode a request to remove a previously annotated text range.
+
+    :raises ValueError: If a supplied ID is outside the protocol range.
+    """
+    range_id = integer(range_id, 'range_id', 1, 0xffffffff)
+    return _text_command('clear-text', request_id, range=range_id)
+
+
+def announce(text: str, *, priority: str = 'polite', request_id: Optional[int] = None) -> str:
+    """
+    Encode one screen-reader announcement with optional assertive priority.
+
+    :raises ValueError: If the text, priority or request ID is invalid.
+    """
+    _validate_annotation_text(text, False)
+    if not text:
+        raise ValueError('Announcement text must be nonempty')
+    if priority not in ('polite', 'assertive'):
+        raise ValueError('Unknown announcement priority')
+    return _text_command('announce', request_id, text=quote(text, safe=''), priority=priority)
+
+
+@dataclass(frozen=True)
+class SpeechStyle:  # pylint: disable=too-many-instance-attributes
+    """Voice Lock settings for a reusable style or an individual utterance."""
+
+    voice: str | None = None
+    language: str | None = None
+    rate: int | None = None
+    pitch: int | None = None
+    pitch_range: int | None = None
+    volume: int | None = None
+    punctuation: str | None = None
+    split_caps: bool | None = None
+
+    def _fields(self) -> dict[str, Field]:
+        result: dict[str, Field] = {}
+        for field in dataclass_fields(self):
+            value = getattr(self, field.name)
+            if value is not None:
+                result[field.name] = (int(value) if field.name == 'split_caps'
+                                      and isinstance(value, bool) else value)
+        return result
+
+
+_SPEECH_INTEGER_FIELDS = {
+    'rate': (-100, 100), 'pitch': (-100, 100), 'pitch_range': (-100, 100),
+    'volume': (0, 100), 'duration': (0, 0x7fffffff), 'id': (0, 0x7fffffff),
+    'queued': (0, 1), 'interrupt': (0, 1), 'split_caps': (0, 1),
+}
+
+
+def speech_command(operation: str, **fields: Field) -> str:
+    """
+    Encode an OSC 777 speech command with unescaped text and the documented field names.
+
+    Numeric fields take integers, and the optional wire field ``id`` requests an acknowledgement.
+
+    :raises ValueError: If speech fields are outside their wire ranges or contain invalid text.
+    """
+    text = fields.get('text', '')
+    if operation == 'character' and (not isinstance(text, str) or len(text) != 1):
+        raise ValueError('Character echo requires one Unicode character')
+    if operation in {'speak', 'queue'} and (not isinstance(text, str) or not text.strip()):
+        raise ValueError('Speech text must be nonempty')
+    for key, value in fields.items():
+        if key in _SPEECH_INTEGER_FIELDS:
+            low, high = _SPEECH_INTEGER_FIELDS[key]
+            if not isinstance(value, int):
+                raise ValueError(f'{key} must be an integer')
+            integer(value, key, low, high)
+        elif key in {'style', 'name', 'language'}:
+            if not isinstance(value, str) or not re.fullmatch(r'[a-zA-Z0-9_.-]+', value):
+                raise ValueError(f'Invalid speech {key}')
+        elif key in {'text', 'voice'}:
+            if not isinstance(value, str):
+                raise ValueError(f'{key} must be text')
+            _validate_annotation_text(value, key == 'text')
+            fields[key] = quote(value, safe='')
+        elif key == 'punctuation' and value not in ('none', 'some', 'all'):
+            raise ValueError('Unknown speech punctuation level')
+    return command('speech', operation, **fields)
+
+
 class Capabilities:
     """The selector versions, graphics media and formats advertised by a terminal."""
 
@@ -156,7 +284,8 @@ class Capabilities:
             name, separator, version = item.rpartition('.')
             if not separator or not version.isdecimal():
                 raise ValueError('Invalid extension version')
-            self.protocols[token(name)] = int(version)
+            name = token(name)
+            self.protocols[name] = max(self.protocols.get(name, 0), int(version))
         self.media = frozenset(filter(None, event.fields.get('media', '').split(',')))
         self.formats = frozenset(int(value) for value in
                                  filter(None, event.fields.get('format', '').split(',')))
@@ -219,14 +348,14 @@ class Channel:
 
 
 class DisplayChannel(Channel):
-    """Report the host display's capabilities and appearance over the terminal stream."""
+    """Report host display capabilities and desktop preferences over the terminal stream."""
 
     def __init__(self, client: 'Silkie'):
         """Bind the display selector."""
         super().__init__(client, 'display')
 
     def query(self, timeout: Optional[float] = 1.0) -> Optional[DisplayEvent]:
-        """Query display capabilities and the current desktop appearance preference."""
+        """Query display capabilities and the current desktop preferences."""
         report = super().query(timeout=timeout)
         return report if isinstance(report, DisplayEvent) else None
 
@@ -265,24 +394,130 @@ class AgentChannel(Channel):
                   c=agent_token(connection), g=agent_token(generation))
 
 
+class SpeechChannel(Channel):
+    """Direct a terminal host's speech queue and Voice Lock styles for the current pane."""
+
+    def __init__(self, client: 'Silkie'):
+        """Bind the speech selector to the terminal connection."""
+        super().__init__(client, 'speech')
+
+    def command(self, operation: str, **fields: Field) -> str:
+        """Encode a speech command, percent-encoding utterance text and voice names."""
+        return speech_command(operation, **fields)
+
+    def query(self, timeout: Optional[float] = 1.0) -> Optional[SpeechCapabilities]:
+        """Read native backend capabilities, returning None if the host does not reply."""
+        report = super().query(timeout)
+        return report if isinstance(report, SpeechCapabilities) else None
+
+    def supported(self, timeout: Optional[float] = 1.0) -> bool:
+        """Return whether the terminal reports an available speech backend."""
+        report = self.query(timeout)
+        return report is not None and report.available
+
+    def _execute(self, operation: str, wait: bool, timeout: Optional[float],
+                 **fields: Field) -> Optional[SpeechAck]:
+        if not wait:
+            self.send(operation, **fields)
+            return None
+        request_id = self.client.next_id()
+        event = self.client.request(self.command(operation, id=request_id, **fields),
+                                    self.selector, 'ack', timeout, request_id)
+        return event if isinstance(event, SpeechAck) else None
+
+    def _utterance(self, operation: str, text: str, style: str | None,
+                   options: SpeechStyle | None, *, wait: bool, timeout: Optional[float],
+                   **fields: Field) -> Optional[SpeechAck]:
+        if style is not None:
+            fields['style'] = style
+        if options is not None:
+            fields.update(options._fields())
+        return self._execute(operation, wait, timeout, text=text, **fields)
+
+    def speak(self, text: str, *, style: str | None = None, options: SpeechStyle | None = None,
+              interrupt: bool = False, wait: bool = False, timeout: Optional[float] = 1.0
+              ) -> Optional[SpeechAck]:
+        """Send an utterance for playback, optionally clearing the pane's speech first."""
+        return self._utterance('speak', text, style, options, wait=wait, timeout=timeout,
+                               interrupt=int(interrupt))
+
+    def queue(self, text: str, *, style: str | None = None, options: SpeechStyle | None = None,
+              interrupt: bool = False, wait: bool = False, timeout: Optional[float] = 1.0
+              ) -> Optional[SpeechAck]:
+        """Queue a styled utterance for the next dispatch."""
+        return self._utterance('queue', text, style, options, wait=wait, timeout=timeout,
+                               interrupt=int(interrupt))
+
+    def character(self, text: str, *, style: str | None = None, options: SpeechStyle | None = None,
+                  interrupt: bool = False, queued: bool = False, wait: bool = False,
+                  timeout: Optional[float] = 1.0) -> Optional[SpeechAck]:
+        """Speak one Unicode character using the host's character-echo behavior."""
+        return self._utterance('character', text, style, options, wait=wait, timeout=timeout,
+                               interrupt=int(interrupt), queued=int(queued))
+
+    def sound(self, name: str, *, queued: bool = False, interrupt: bool = False,
+              wait: bool = False, timeout: Optional[float] = 1.0) -> Optional[SpeechAck]:
+        """Play a native sound by name, or enqueue it for dispatch."""
+        return self._execute('sound', wait, timeout, name=name, queued=int(queued),
+                             interrupt=int(interrupt))
+
+    def silence(self, duration: int, *, queued: bool = False, interrupt: bool = False,
+                wait: bool = False, timeout: Optional[float] = 1.0) -> Optional[SpeechAck]:
+        """Insert a duration in milliseconds into playback, or enqueue it for dispatch."""
+        return self._execute('silence', wait, timeout, duration=duration, queued=int(queued),
+                             interrupt=int(interrupt))
+
+    def set_style(self, name: str, options: SpeechStyle, *, wait: bool = False,
+                  timeout: Optional[float] = 1.0) -> Optional[SpeechAck]:
+        """Define or replace a named Voice Lock style in the pane."""
+        return self._execute('set-style', wait, timeout, style=name, **options._fields())
+
+    def clear_style(self, name: str, *, wait: bool = False,
+                    timeout: Optional[float] = 1.0) -> Optional[SpeechAck]:
+        """Remove a previously defined style."""
+        return self._execute('clear-style', wait, timeout, style=name)
+
+    def dispatch(self, *, wait: bool = False, timeout: Optional[float] = 1.0
+                 ) -> Optional[SpeechAck]:
+        """Send the queued utterances, sounds, and silence to playback in order."""
+        return self._execute('dispatch', wait, timeout)
+
+    def pause(self, *, wait: bool = False, timeout: Optional[float] = 1.0) -> Optional[SpeechAck]:
+        """Pause playback in the current pane."""
+        return self._execute('pause', wait, timeout)
+
+    def resume(self, *, wait: bool = False, timeout: Optional[float] = 1.0) -> Optional[SpeechAck]:
+        """Resume paused speech in the current pane."""
+        return self._execute('resume', wait, timeout)
+
+    def stop(self, *, wait: bool = False, timeout: Optional[float] = 1.0) -> Optional[SpeechAck]:
+        """Interrupt playback and clear the pane's speech queues."""
+        return self._execute('stop', wait, timeout)
+
+    def reset(self, *, wait: bool = False, timeout: Optional[float] = 1.0) -> Optional[SpeechAck]:
+        """Stop playback, clear the queues, and remove the pane's Voice Lock styles."""
+        return self._execute('reset', wait, timeout)
+
+
 class Accessibility:
-    """The Silkie image annotation extension for the current terminal screen."""
+    """Silkie image and text annotations and screen-reader announcements."""
 
     def __init__(self, client: 'Silkie'):
         """Bind annotation writes and acknowledgements to a Silkie client."""
         self.client = client
 
-    def supported(self, timeout: Optional[float] = 1.0, *, force: bool = False) -> bool:
-        """Check the aggregate capabilities for a11y.1."""
+    def supported(self, timeout: Optional[float] = 1.0, *, force: bool = False,
+                  version: int = 1) -> bool:
+        """Check discovery for the required accessibility version."""
         caps = self.client.capabilities(timeout, force=force)
-        return caps is not None and caps.supports('a11y')
+        return caps is not None and caps.supports('a11y', version)
 
-    def _send(self, sequence: str, request_id: Optional[int],
+    def _send(self, sequence: str, version: int, request_id: Optional[int],
               timeout: Optional[float]) -> Optional[AccessibilityAck]:
         if request_id is None:
             self.client.write(sequence)
             return None
-        event = self.client.request(sequence, 'a11y', 'ack', timeout, request_id)
+        event = self.client.request(sequence, 'a11y', 'ack', timeout, request_id, v=version)
         return event if isinstance(event, AccessibilityAck) else None
 
     def set_image(self, image_id: int, placement_id: int, annotation: ImageAnnotation, *,
@@ -290,14 +525,37 @@ class Accessibility:
         """Annotate a placed image and optionally return the correlated terminal reply."""
         request_id = self.client.next_id() if wait else None
         return self._send(annotate_image(image_id, placement_id, annotation, request_id=request_id),
-                          request_id, timeout)
+                          1, request_id, timeout)
 
     def clear_image(self, image_id: int, placement_id: int, *, wait: bool = True,
                     timeout: Optional[float] = 1.0) -> Optional[AccessibilityAck]:
         """Clear a placement's annotation and optionally return the correlated terminal reply."""
         request_id = self.client.next_id() if wait else None
         return self._send(clear_image_annotation(image_id, placement_id, request_id=request_id),
-                          request_id, timeout)
+                          1, request_id, timeout)
+
+    def set_text(self, range_id: int, start: tuple[int, int], end: tuple[int, int], *,
+                 role: str, label: str = '', wait: bool = True, timeout: Optional[float] = 1.0
+                 ) -> Optional[AccessibilityAck]:
+        """Label a screen range and optionally return the correlated terminal reply."""
+        request_id = self.client.next_id() if wait else None
+        sequence = annotate_text(range_id, start, end, role=role, label=label,
+                                 request_id=request_id)
+        return self._send(sequence, 2, request_id, timeout)
+
+    def clear_text(self, range_id: int, *, wait: bool = True,
+                   timeout: Optional[float] = 1.0) -> Optional[AccessibilityAck]:
+        """Clear a screen range's annotation and optionally return the terminal reply."""
+        request_id = self.client.next_id() if wait else None
+        return self._send(clear_text_annotation(range_id, request_id=request_id),
+                          2, request_id, timeout)
+
+    def announce(self, text: str, *, priority: str = 'polite', wait: bool = True,
+                 timeout: Optional[float] = 1.0) -> Optional[AccessibilityAck]:
+        """Request one screen-reader announcement and optionally return the terminal reply."""
+        request_id = self.client.next_id() if wait else None
+        return self._send(announce(text, priority=priority, request_id=request_id),
+                          2, request_id, timeout)
 
 
 class Silkie:
@@ -327,6 +585,7 @@ class Silkie:
         self.frame = Channel(self, 'frame')
         self.depth = Channel(self, 'depth')
         self.ssh_agent = AgentChannel(self, 'ssh-agent')
+        self.speech = SpeechChannel(self)
         self.accessibility = Accessibility(self)
 
     def channel(self, selector: str) -> Channel:
@@ -350,9 +609,8 @@ class Silkie:
                 ) -> Optional[ProtocolEvent]:
         """Match only this reply, retaining keyboard input and unrelated extension events."""
         # Fields can arrive in any order. Lookaheads are confined to this frame.
-        checks = [r'(?=[^\x1b\x07]*(?:;|:)v=1(?=:|\x07|\x1b))',
-                  r'(?=[^\x1b\x07]*(?:;|:)op=' + re.escape(operation)
-                  + r'(?=:|\x07|\x1b))']
+        checks = [r'(?=[^\x1b\x07]*(?:;|:)op=' + re.escape(operation) + r'(?=:|\x07|\x1b))']
+        reply_fields.setdefault('v', 1)
         if request_id is not None:
             reply_fields['id'] = request_id
         for key, value in reply_fields.items():

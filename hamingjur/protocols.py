@@ -263,7 +263,7 @@ class DisplayEvent(ProtocolEvent):
         return DisplayAppearance.NO_PREFERENCE
 
     @property
-    def eink_scheme(self) -> DisplayAppearance | None:
+    def eink_scheme(self) -> Optional[DisplayAppearance]:
         """Return Silkie's effective e-paper palette when it is reported."""
         value = self.fields.get('eink_scheme')
         if value == 'light':
@@ -271,6 +271,22 @@ class DisplayEvent(ProtocolEvent):
         if value == 'dark':
             return DisplayAppearance.DARK
         return None
+
+    @property
+    def high_contrast(self) -> bool:
+        """Return whether the host requests high contrast."""
+        return self.fields.get('high_contrast') == '1'
+
+    @property
+    def differentiate_without_color(self) -> bool:
+        """Return whether the host requests color-independent distinctions."""
+        return self.fields.get('differentiate_without_color') == '1'
+
+    @property
+    def languages(self) -> tuple[str, ...]:
+        """Return reported language tags in preference order, or an empty tuple."""
+        return tuple(tag for tag in self.fields.get('languages', '').split(',')
+                     if re.fullmatch(r'[a-zA-Z]{1,8}(?:-[a-zA-Z0-9]{1,8})*', tag))
 
 
 @dataclass(frozen=True)
@@ -285,12 +301,42 @@ class AgentEvent(ProtocolEvent):
 
 @dataclass(frozen=True)
 class AccessibilityAck(ProtocolEvent):
-    """A Silkie image annotation acknowledgement."""
+    """A Silkie accessibility acknowledgement."""
 
     @property
     def status(self) -> str:
         """Return the terminal's status, including errors such as ENOENT or ENOMEM."""
         return self.fields['status']
+
+
+@dataclass(frozen=True)
+class SpeechAck(ProtocolEvent):
+    """Acknowledgement of a Silkie speech command."""
+
+    @property
+    def status(self) -> str:
+        """Return the terminal's command status."""
+        return self.fields['status']
+
+
+@dataclass(frozen=True)
+class SpeechCapabilities(ProtocolEvent):
+    """Speech backend capabilities reported by the terminal host."""
+
+    @property
+    def available(self) -> bool:
+        """Return whether the terminal reports a speech backend."""
+        return self.fields.get('available') == '1'
+
+    @property
+    def engine(self) -> str:
+        """Return the host backend identifier."""
+        return self.fields.get('engine', 'none')
+
+    @property
+    def pitch_range(self) -> bool:
+        """Return whether the backend accepts pitch range adjustments."""
+        return self.fields.get('pitch_range') == '1'
 
 
 # These are complete frames, never a fixed-size input buffer. Unknown OSC 777
@@ -302,6 +348,11 @@ FRAME_RE = re.compile(
     r'|\x1b\[>[0-9:;]* q')
 FRAME_PREFIXES = ('\x1b]777;', '\x1b]99;', '\x1b]5522;', '\x1b]5113;',
                   '\x1b]72;', '\x1b]22;', '\x1b]21;', '\x1b_G', '\x1bP@kitty-cmd')
+_SILKIE_VERSIONS = {'a11y': ('1', '2')}
+_ACK_TYPES = {'a11y': AccessibilityAck, 'speech': SpeechAck}
+_REPORT_TYPES = {('display', 'cap'): DisplayEvent, ('display', 'event'): DisplayEvent,
+                 ('speech', 'cap'): SpeechCapabilities}
+_SILKIE_EVENT_TYPES = {'tablet-pointer': TabletEvent, 'ssh-agent': AgentEvent}
 
 
 def incomplete_frame(text: str) -> bool:
@@ -334,18 +385,18 @@ def parse_event(raw: str) -> ProtocolEvent:
         if not separator:
             raise ValueError('Missing Silkie fields')
         fields = parse_fields(header)
-        if fields.get('v') != '1' or not fields.get('op'):
+        versions = _SILKIE_VERSIONS.get(selector, ('1',))
+        if fields.get('v') not in versions or not fields.get('op'):
             raise ValueError('Unsupported Silkie version or missing operation')
-        if selector == 'display' and fields['op'] in {'cap', 'event'}:
-            return DisplayEvent('silkie:display', fields, raw=raw)
-        if selector == 'a11y' and fields['op'] == 'ack':
+        ack_type = _ACK_TYPES.get(selector)
+        if ack_type is not None and fields['op'] == 'ack':
             identifier = fields.get('id', '')
             if not re.fullmatch(r'[0-9]+', identifier) or not fields.get('status'):
-                raise ValueError('Invalid accessibility acknowledgement')
+                raise ValueError('Invalid command acknowledgement')
             integer(int(identifier), 'id', 0, 0x7fffffff)
-            return AccessibilityAck('silkie:a11y', fields, raw=raw)
-        event_type = {'tablet-pointer': TabletEvent, 'ssh-agent': AgentEvent}.get(
-            selector, ProtocolEvent)
+            return ack_type('silkie:' + selector, fields, raw=raw)
+        event_type = _REPORT_TYPES.get((selector, fields['op']),
+                                       _SILKIE_EVENT_TYPES.get(selector, ProtocolEvent))
         return event_type('silkie:' + token(selector), fields, raw=raw)
     if code == '5113':
         return ProtocolEvent('file-transfer', parse_fields(body, ';'), raw=raw)

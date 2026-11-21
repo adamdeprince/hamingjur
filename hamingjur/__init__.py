@@ -15,4 +15,4 @@ from .imaging import Transfer, ImageSupport, PreparedImage, DrawnImage
 
 __all__ = ('Terminal', 'LineEditor', 'LineHistory', 'graphics', 'kitty', 'protocols', 'silkie',
            'Transfer', 'ImageSupport', 'PreparedImage', 'DrawnImage')
-__version__ = "0.1.2"
+__version__ = "0.1.3"

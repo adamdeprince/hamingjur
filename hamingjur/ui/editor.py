@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Callable
 from wcwidth import iter_graphemes
 
 from ..keyboard import Keystroke
+from ._i18n import Message
 from .layout import Surface
 from .widgets import Pointer, TextView, Widget, key_name, typed_text
 
@@ -336,7 +337,7 @@ class TextEditor(TextView):
             self.redo()
         elif name == 'F3':
             if not self.find(self._last_match):
-                app.set_status('Text not found', error=True)
+                app.set_status(Message('Text not found'), error=True)
         else:
             text = typed_text(key)
             if not text:
